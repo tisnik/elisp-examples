@@ -1,0 +1,5 @@
+(define-key evil-normal-state-map (kbd "<RET>")
+  (lambda ()
+    (interactive)
+    (move-end-of-line nil)
+    (eval-print-last-sexp)))
