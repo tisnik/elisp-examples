@@ -1,0 +1,11 @@
+(defun factorial (n)
+  (let ((accum 1))
+    (while (> n 0)
+           (setq accum (* accum n))
+           (setq n (1- n)))
+    accum))
+
+(setq n 0)
+(while (< n 15)
+       (print (factorial n))
+       (setq n (1+ n)))
