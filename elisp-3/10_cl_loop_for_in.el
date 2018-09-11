@@ -12,10 +12,10 @@
 
 
 (defun factorial (n)
-  (setq accumulator 1)
-  (dolist (value (number-sequence 1 n))
-    (setq accumulator (* accumulator value)))
-  accumulator)
+  (let ((accumulator 1))
+      (dolist (value (number-sequence 1 n))
+        (setq accumulator (* accumulator value)))
+      accumulator))
 
 (print
     (cl-loop for i in lst
