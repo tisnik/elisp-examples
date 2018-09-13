@@ -11,10 +11,14 @@
   (acc it)
   (concat acc "-" it))
 
+(defun ccr
+  (it acc)
+  (concat acc "-" it))
+
 (print (-reductions 'cc numbers))
 
-(print (-reductions-r 'cc numbers))
+(print (-reductions-r 'ccr numbers))
 
 (print (-reductions-from 'cc "START" numbers))
 
-(print (-reductions-r-from 'cc "START" numbers))
+(print (-reductions-r-from 'ccr "START" numbers))
