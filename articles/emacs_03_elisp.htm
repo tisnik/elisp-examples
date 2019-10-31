@@ -1,0 +1,1793 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Úpravy Emacsu a tvorba nových modulů s využitím Emacs Lispu (2)</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Úpravy Emacsu a tvorba nových modulů s využitím Emacs Lispu (2)</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>Ve druhém článku o Emacs Lispu se naučíme používat prakticky všechny základní konstrukce tohoto jazyka. Ukážeme si deklaraci globálních i lokálních proměnných, rozvětvení, použití rekurze a programových smyček a na závěr si popíšeme i jednoduchou interaktivní funkci.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Vyhodnocování seznamů</a></p>
+<p><a href="#k02">2. Speciální formy</a></p>
+<p><a href="#k03">3. Práce s&nbsp;globálními proměnnými a konstantami</a></p>
+<p><a href="#k04">4. Dokumentační řetězce u proměnných a konstant</a></p>
+<p><a href="#k05">5. Koncept lokálních proměnných</a></p>
+<p><a href="#k06">6. &bdquo;Paralelní&ldquo; versus &bdquo;sekvenční&ldquo; inicializace lokálních proměnných</a></p>
+<p><a href="#k07">7. Pravdivostní hodnoty a základní booleovské operace</a></p>
+<p><a href="#k08">8. Další booleovské operace a predikáty</a></p>
+<p><a href="#k09">9. Řízení běhu programu &ndash; rozvětvení</a></p>
+<p><a href="#k10">10. Použití forem <strong>when</strong> a <strong>unless</strong></a></p>
+<p><a href="#k11">11. Vícenásobné rozvětvení &ndash; forma <strong>cond</strong></a></p>
+<p><a href="#k12">12. Programové smyčky ve funkcionálních jazycích?</a></p>
+<p><a href="#k13">13. Základní programové smyčky založené na speciální formě <strong>while</strong></a></p>
+<p><a href="#k14">14. Použití makra <strong>dotimes</strong></a></p>
+<p><a href="#k15">15. Makro <strong>dolist</strong></a></p>
+<p><a href="#k16">16. Interaktivní funkce</a></p>
+<p><a href="#k17">17. Otestování jednoduché interaktivní funkce</a></p>
+<p><a href="#k18">18. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k19">19. Literatura</a></p>
+<p><a href="#k20">20. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Vyhodnocování seznamů</h2>
+
+<p><i>&bdquo;Learning Lisp is like climbing a hill in which the first part is
+the steepest.&ldquo;</i></p>
+
+<p>V&nbsp;programovacím jazyku <i>Emacs Lisp</i> existují čtyři základní typy
+forem:</p>
+
+<table>
+<tr><th>Forma</th><th>Příklad</th><th>Vyhodnocení</th></tr>
+<tr><td>literály</td><td>celé číslo, float, řetězec, ...</td><td>vyhodnocují se samy na sebe</td></tr>
+<tr><td>speciální symboly</td><td><strong>nil</strong>, <strong>t</strong></td><td>vyhodnocují se samy na sebe, nelze je měnit</td></tr>
+<tr><td>složené formy</td><td>seznamy, vektory, asociativní pole</td><td>rekurzivní u seznamů (viz další text)</td></tr>
+<tr><td>speciální formy</td><td><strong>let</strong>, <strong>quote</strong>, <strong>setq</strong>, <strong>if</strong>, <strong>lambda</strong></td><td>různý způsob vyhodnocení (typicky odlišný od seznamů)</td></tr>
+</table>
+
+<p>Seznamy mají v&nbsp;programovacím jazyku <i>Emacs Lisp</i> kromě klasické
+funkce (datový typ) ještě jeden dosti zásadní význam. Samotný program zapsaný
+v&nbsp;<i>Emacs Lispu</i> není totiž nic jiného než seznam (či seznamy),
+přičemž prvním prvkem seznamu je jméno funkce a zbylé prvky seznamu jsou
+chápány jako parametry této funkce. Příkladem může být například funkce nazvaná
+<strong>print</strong>, která vypíše obsah svých parametrů na standardní výstup
+a posléze je provedeno odřádkování. Klasický program typu &bdquo;Hello
+world&ldquo; by tedy mohl v&nbsp;<i>Emacs Lispu</i> vypadat následovně:</p>
+
+<pre>
+<strong>(println "Hello" "world")</strong>
+Hello world
+</pre>
+
+<p>Funkce samozřejmě mohou vracet i nějaké výsledky, což nám umožňuje zapisovat
+program funkcionálním stylem &ndash; tedy jako funkci, jejíž parametry jsou
+vyhodnoceny na základě nějakých jiných funkcí vyhodnocovaných rekurzivně. Mějme
+například funkci pojmenovanou + (což je v&nbsp;<i>Lispu</i> zcela korektní
+jméno funkce), která provede součet všech svých parametrů, a dále funkci
+pojmenovanou *, která naopak vynásobí všechny své parametry. Můžeme tedy
+psát:</p>
+
+<pre>
+<i>; + akceptuje libovolný počet argumentů</i>
+<strong>(+ 1 2 3)</strong>
+6
+</pre>
+
+<p>nebo též:</p>
+
+<pre>
+<strong>(* 6 7)</strong>
+42
+</pre>
+
+<p>Ovšem taktéž je možné použít následující zápis, kdy se nejdříve vyhodnotí
+vnitřní funkce a teprve poté se jejich výsledky použijí pro násobení:</p>
+
+<pre>
+<strong>(* (+ 1 2 3) (+ 3 4))</strong>
+42
+</pre>
+
+<p>Vyhodnocení probíhá v&nbsp;těchto krocích:</p>
+
+<pre>
+(* (+ 1 2 3) (+ 3 4))
+(* 6 (+ 3 4))
+(* 6 7)
+42
+</pre>
+
+<p>Pravidla pro vyhodnocení forem jsou v&nbsp;programovacím jazyku <i>Lisp</i>
+velmi jednoduchá a přímočará, na rozdíl od mnoha jiných programovacích jazyků.
+Tato pravidla lze ve zjednodušené podobě sepsat do několika bodů:</p>
+
+<ol>
+
+<li>čísla, řetězce, pravdivostní hodnoty a další literály jsou vyhodnoceny samy
+na sebe (což je logické &ndash; jedná se o dále nedělitelné objekty)</li>
+
+<li>hodnotou symbolu je objekt, který je na tento symbol navázán (analogie
+z&nbsp;jiných programovacích jazyků &ndash; hodnotou proměnné zapsané svým
+jménem je hodnota uložená do proměnné)</li>
+
+<li>seznamy jsou vyhodnocovány tak, že se první prvek seznamu chápe jako jméno
+funkce (či speciální formy), které je předán zbytek seznamu jako parametry této
+funkce (formy)</li>
+
+<li>pokud seznam obsahuje podseznamy, jsou tyto podseznamy vyhodnoceny
+nejdříve, přičemž úroveň rekurzivního zanořování při vyhodnocování podseznamů
+není teoreticky omezena (tj.&nbsp;podseznamy lze vnořovat do téměř libovolné
+úrovně). To jsme ostatně viděli už na předchozím příkladu.</li>
+
+</ol>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Speciální formy</h2>
+
+<p>Další velmi důležitou vlastností programovacího jazyka <i>Emacs Lisp</i>,
+s&nbsp;níž se v&nbsp;dnešním článku alespoň ve stručnosti seznámíme, je použití
+takzvaných <i>speciálních forem</i>. Ze syntaktického hlediska jsou speciální
+formy zapisovány naprosto stejným způsobem jako běžné funkce
+(tj.&nbsp;v&nbsp;kulatých závorkách je nejprve zapsáno jméno funkce
+resp.&nbsp;formy a posléze její parametry), ovšem existuje zde jeden významný
+rozdíl &ndash; zatímco u funkcí jsou všechny jejich parametry nejdříve
+rekurzivně vyhodnoceny a teprve posléze je funkce zavolána, u speciálních forem
+k&nbsp;tomuto vyhodnocení obecně nedochází, resp.&nbsp;jsou vyhodnoceny pouze
+některé parametry (které konkrétně, to závisí na tom, o jakou speciální formu
+se jedná).</p>
+
+<p>K&nbsp;čemu jsou speciální formy dobré? Typickým a pro praxi naprosto
+nezbytným příkladem je zápis podmíněných bloků kódu. V&nbsp;tomto případě
+potřebujeme, aby se nějaká část programu vykonala pouze v&nbsp;případě, že je
+splněna (popř.&nbsp;nesplněna) nějaká podmínka, v&nbsp;opačném případě nemá být
+tato část programu vůbec vykonána.</p>
+
+<p>Představme si například tuto situaci (formu <strong>if</strong> si
+podrobněji popíšeme <a href="#k09">v&nbsp;deváté kapitole</a>):</p>
+
+<pre>
+<strong>(if (message-box "Smazat disk?")</strong>
+    <strong>(delete-filesystem))</strong>
+</pre>
+
+<p>Což je jen pěkně upravené volání formy <strong>if</strong> se dvěma
+parametry:</p>
+
+<pre>
+<strong>(if (message-box "Smazat disk?") (delete-filesystem))</strong>
+</pre>
+
+<p>Pomocí běžných funkcí by nebylo možné tuto funkcionalitu splnit, protože by
+se kód (předaný jako parametr &ndash; jinou možnost v&nbsp;<i>Lispu</i> ostatně
+prakticky nemáme) vykonal ještě před zavoláním &bdquo;podmínkové&ldquo; funkce.
+Z&nbsp;toho vyplývá, že samotná podmínka, i když se syntakticky podobá volání
+funkce, je <i>speciální formou</i>. V&nbsp;jazyku <i>Emacs Lisp</i> existuje
+pro zápis podmíněného příkazu mj.&nbsp;i speciální forma <strong>if</strong>,
+která očekává tři parametry:</p>
+
+<ol>
+<li>podmínku (výraz=formu, která se vyhodnotí na <strong>t</strong> či <strong>nil</strong></li>
+<li>formu vyhodnocenou v&nbsp;případě, že je podmínka splněna</li>
+<li>formu vyhodnocenou v&nbsp;případě, že podmínka není splněna</li>
+</ol>
+
+<p><div class="rs-tip-major">Poznámka: z&nbsp;historického hlediska však forma
+<strong>if</strong> nebyla v&nbsp;původním LISPu použita. Namísto ní mohli
+programátoři použít obecnější formu nazvanou <strong>cond</strong>, kterou
+samozřejmě taktéž máme v&nbsp;Emacs Lispu k&nbsp;dispozici. Další dvě speciální
+formy, které samy o sobě budou postačovat k&nbsp;tvorbě plnohodnotného LISPu,
+již známe &ndash; <strong>quote</strong> a <strong>lambda</strong>. Pokud
+přidáte pětici funkcí <strong>atom</strong>, <strong>eq</strong>,
+<strong>car</strong>, <strong>cdr</strong> a <strong>cons</strong>, získáte
+LISP ve zhruba takové podobě, v&nbsp;jaké byl poprvé prakticky
+implementován.</div></p>
+
+<p>V&nbsp;Emacs Lispu najdeme tyto speciální formy:</p>
+
+<table>
+<tr><td>and</td></tr>
+<tr><td>catch</td></tr>
+<tr><td>cond</td></tr>
+<tr><td>condition-case</td></tr>
+<tr><td>defconst</td></tr>
+<tr><td>defvar</td></tr>
+<tr><td>function</td></tr>
+<tr><td>if</td></tr>
+<tr><td>interactive</td></tr>
+<tr><td>lambda</td></tr>
+<tr><td>let</td></tr>
+<tr><td>let*</td></tr>
+<tr><td>or</td></tr>
+<tr><td>prog1</td></tr>
+<tr><td>prog2</td></tr>
+<tr><td>progn</td></tr>
+<tr><td>quote</td></tr>
+<tr><td>save-current-buffer</td></tr>
+<tr><td>save-excursion</td></tr>
+<tr><td>save-restriction</td></tr>
+<tr><td>setq</td></tr>
+<tr><td>setq-default</td></tr>
+<tr><td>track-mouse</td></tr>
+<tr><td>unwind-protect</td></tr>
+<tr><td>while</td></tr>
+</table>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Práce s&nbsp;globálními proměnnými a konstantami</h2>
+
+<p>Prozatím jsme se v&nbsp;demonstračních příkladech povětšinou zabývali pouze
+funkcemi, které nějakým způsobem zpracovávaly své parametry a
+popř.&nbsp;vracely nějaký vypočtený výsledek. Ovšem <i>Emacs Lisp</i> (na
+rozdíl od některých jiných dialektů LISPu) není pouze akademický jazyk, takže
+umožňuje i práci s&nbsp;proměnnými, samozřejmě včetně proměnných globálních
+(jejichž výskyt by se sice měl v&nbsp;programech co nejvíce omezit, ovšem
+v&nbsp;Emacsu jsou i některé interní struktury editoru reprezentovány
+globálními proměnnými). Globální i lokální proměnné jsou měnitelné, protože
+<i>Emacs Lisp</i> není, ostatně stejně jako většina ostatních LISPových
+dialektů, čistě funkcionální. Pro základní práci s&nbsp;proměnnými je určeno
+těchto několik funkcí a speciálních forem:</p>
+
+<table>
+<tr><th>#</th><th>Funkce</th><th>Význam</th></tr>
+<tr><td>1</td><td>set</td><td>nastavení proměnné na určitou hodnotu, proměnná musí být quotována</td></tr>
+<tr><td>2</td><td>setq</td><td>nastavení proměnné na určitou hodnotu, proměnná je quotována automaticky</td></tr>
+<tr><td>3</td><td>defconst</td><td>definice konstanty popř.&nbsp;i jejího dokumentačního řetězce</td></tr>
+<tr><td>4</td><td>defvar</td><td>definice proměnné popř.&nbsp;i jejího dokumentačního řetězce</td></tr>
+</table>
+
+<p>Podívejme se nyní na způsob použití těchto funkcí a speciálních forem. Pro
+nastavení hodnoty proměnné či proměnných se používá forma <strong>set</strong>.
+Jména proměnných musí být v&nbsp;tomto případě quotována (apostrof před
+jménem):</p>
+
+<pre>
+<strong>(set 'zero 0)</strong>
+<strong>(print zero)</strong>
+0
+</pre>
+
+<p>Mnohem praktičtější je namísto funkce <strong>set</strong> použít formu
+nazvanou <strong>setq</strong>, která quotování nepotřebuje. Proto se
+s&nbsp;touto formou setkáme v&nbsp;programech mnohem častěji:</p>
+
+<pre>
+<strong>(setq answer 42)</strong>
+<strong>(print answer)</strong>
+42
+</pre>
+
+<p>Proměnnou definovanou přes <strong>set</strong> nebo <strong>setq</strong>
+lze změnit (je tedy mutable):</p>
+
+<pre>
+<strong>(setq answer 43)</strong>
+<strong>(print answer)</strong>
+43
+</pre>
+
+<p>Pomocí speciální formy <strong>setq</strong> je možné vytvořit více
+proměnných jediným příkazem:</p>
+
+<pre>
+<strong>(setq x 10</strong>
+      <strong>y 20)</strong>
+<strong>(print x)</strong>
+10
+<strong>(print y)</strong>
+20
+</pre>
+
+<p>Alternativně je možné proměnné definovat s&nbsp;využitím další speciální
+formy pojmenované <strong>defvar</strong>. Na rozdíl od <strong>setq</strong>
+je možné pomocí <strong>defvar</strong> definovat jen jednu proměnnou. Pokud
+již proměnná existuje, nebude přepsána!</p>
+
+<pre>
+<strong>(defvar e 2.7172)</strong>
+<strong>(print e)</strong>
+2.7172
+&nbsp;
+<strong>(defvar e 5.55)</strong>
+<strong>(print e)</strong>
+2.7172
+</pre>
+
+<p>Konstanty se definují pomocí speciální formy <strong>defconst</strong>:</p>
+
+<pre>
+<strong>(defconst pi 3.141592653589793)</strong>
+<strong>(print pi)</strong>
+3.141592653589793
+</pre>
+
+<p>A lze je později změnit, ovšem jen pomocí <strong>defconst</strong>:</p>
+
+<pre>
+<strong>(defconst pi 3)</strong>
+<strong>(print pi)</strong>
+3
+</pre>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Dokumentační řetězce u proměnných a konstant</h2>
+
+<p>Další význam speciálních forem <strong>defconst</strong> a
+<strong>defvar</strong> spočívá v&nbsp;tom, že je možné ke konstantě či
+proměnné přidat takzvaný dokumentační řetězec, který se automaticky stane
+součástí nápovědy Emacsu. Použití je snadné:</p>
+
+<pre>
+<strong>(defconst pi-float 3.141592653589793 "Ratio of a circle's circumference to its diameter")</strong>
+&nbsp;
+<strong>(print pi-float)</strong>
+<strong>(print (describe-variable 'pi-float))</strong>
+</pre>
+
+<p>Mělo by se vypsat:</p>
+
+<pre>
+3.141592653589793
+&nbsp;
+&nbsp;
+"pi-float’s value is 3.141592653589793
+&nbsp;
+  This variable may be risky if used as a file-local variable.
+
+&nbsp;
+Documentation:
+Ratio of a circle’s circumference to its diameter"
+</pre>
+
+<p>Podobně si můžeme vypsat dokumentaci k&nbsp;symbolu načteného z&nbsp;jiného
+modulu:</p>
+
+<pre>
+<strong>(print (describe-variable 'float-pi))</strong>
+</pre>
+
+<p>S&nbsp;výsledkem:</p>
+
+<pre>
+#("float-pi is a variable defined in ‘float-sup.el’.
+Its value is 3.141592653589793
+&nbsp;
+  This variable may be risky if used as a file-local variable.
+&nbsp;
+Documentation:
+The value of Pi (3.1415926...)."
+</pre>
+
+<p>Příklad přidání dokumentačního řetězce k&nbsp;proměnné:</p>
+
+<pre>
+<strong>(defvar delta 4.669201609102990671853203821 "Feigenbaum constant")</strong>
+&nbsp;
+<strong>(print delta)</strong>
+<strong>(print (describe-variable 'delta))</strong>
+</pre>
+
+<p>S&nbsp;výsledkem:</p>
+
+<pre>
+4.66920160910299
+&nbsp;
+&nbsp;
+&nbsp;
+"delta’s value is 4.66920160910299
+&nbsp;
+Documentation:
+Feigenbaum constant"
+</pre>
+
+<p>Proměnná bez dokumentačního řetězce:</p>
+
+<pre>
+<strong>(defvar unknown nil)</strong>
+<strong>(print unknown)</strong>
+<strong>(print (describe-variable 'unknown))</strong>
+</pre>
+
+<p>S&nbsp;výsledkem:</p>
+
+<pre>
+nil
+&nbsp;
+&nbsp;
+&nbsp;
+"unknown’s value is nil
+&nbsp;
+Documentation:
+Not documented as a variable."
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: v&nbsp;případě použití
+<strong>setq</strong> není možné dokumentační řetězec zadat, protože by
+interpret nevěděl, kde začíná definice další proměnné.</div></p>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Koncept lokálních proměnných</h2>
+
+<p>V&nbsp;mnoha funkcích se používají lokální proměnné. Ty se ovšem (na rozdíl
+od proměnných globálních) nedefinují pomocí formy <strong>set</strong> ani
+<strong>setq</strong>, ale další speciální formou pojmenovanou
+<strong>let</strong>, která současně omezuje platnost takto vytvořených
+proměnných. Do formy <strong>let</strong> se totiž zapisuje jak deklarace a
+inicializace proměnné, tak i vlastní tělo, tj.&nbsp;seznam výrazů. Návratovou
+hodnotou celého bloku je hodnota vrácená posledním výrazem. Nejjednodušší
+příklad s&nbsp;deklarací jediné lokální proměnné může vypadat následovně:</p>
+
+<pre>
+<strong>(let ((x 10)) (* x 2))</strong>
+20
+</pre>
+
+<p>Při deklaraci dvou proměnných (či ještě většího počtu proměnných) se
+používají závorky:</p>
+
+<pre>
+<strong>(let ((x 6) (y 7)) (* x y))</strong>
+42
+</pre>
+
+<p>Lze přepsat i takto:</p>
+
+<pre>
+<strong>(let ((x 6)</strong>
+      <strong>(y 7))</strong>
+     <strong>(* x y))</strong>
+42
+</pre>
+
+<p>Následuje příklad použití speciální formy <strong>let</strong> uvnitř
+funkce. Zde je návratová hodnota <strong>let</strong> současně i návratovou
+hodnotou celé funkce:</p>
+
+<pre>
+<strong>(defun prumer</strong>
+  <strong>(seznam)</strong>
+  <strong>(let ((soucet (apply '+ seznam))</strong>
+        <strong>(pocet  (length seznam)))</strong>
+        <strong>(/ soucet pocet)))</strong>
+</pre>
+
+<p>Můžeme snadno provést otestování nové funkce:</p>
+
+<pre>
+<strong>(print (prumer '(1 2 3 4 5 6 7 8 9)))</strong>
+5
+</pre>
+
+<p>Formy <strong>let</strong> je možné v&nbsp;případě potřeby libovolným
+způsobem rekurzivně zanořovat. Oblast viditelnosti proměnných je stále určena
+blokem <strong>let</strong>, ve kterém je proměnná deklarována. Zde má tedy
+proměnná nazvaná <strong>vysledek</strong> jen omezenou platnost
+viditelnosti:</p>
+
+<pre>
+<strong>(defun prumer-2</strong>
+  <strong>(seznam)</strong>
+  <strong>(let ((soucet (apply '+ seznam)))</strong>
+     <strong>(let ((pocet (length seznam)))</strong>
+        <strong>(/ soucet pocet))))</strong>
+</pre>
+
+<p>Test proběhne stejně, jako v&nbsp;předchozím příkladu:</p>
+
+<pre>
+<strong>(print (prumer-2 '(1 2 3 4 5 6 7 8 9)))</strong>
+5
+</pre>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. &bdquo;Paralelní&ldquo; versus &bdquo;sekvenční&ldquo; inicializace lokálních proměnných</h2>
+
+<p>Při deklaraci většího množství lokálních proměnných v&nbsp;jediné formě
+<strong>let</strong> si musíme dát pozor na to, že proměnné, které jsou
+deklarovány a inicializovány dříve, <strong>není</strong> možné použít i ve
+výrazech sloužících pro inicializaci později deklarovaných proměnných. Jinými
+slovy &ndash; přiřazení, které je deklarováno v&nbsp;<strong>let</strong> se
+jakoby provádí paralelně.</p>
+
+<p>Co to znamená v&nbsp;praxi? Podívejme se na následující funkci počítající
+délku přepony pravoúhlého trojúhelníku. Vytvoříme si tři pomocné proměnné a
+v&nbsp;průběhu jejich deklarace vlastně provedeme předběžné mezivýpočty
+(x<sup>2</sup>, y<sup>2</sup>, x<sup>2</sup>+y<sup>2</sup>):</p>
+
+<pre>
+<strong>(defun incorrect-hypot</strong>
+  <strong>(x y)</strong>
+  <strong>(let ((x2 (* x x))</strong>
+        <strong>(y2 (* y y))</strong>
+        <strong>(s  (+ x2 y2)))</strong>
+    <strong>(sqrt s)))</strong>
+</pre>
+
+<p>Pokusme se nyní tuto funkci zavolat:</p>
+
+<pre>
+<strong>(print (incorrect-hypot 3 4))</strong>
+&nbsp;
+Symbol’s value as variable is void: x2
+</pre>
+
+<p>Vidíme, že zavolání skončilo s&nbsp;chybou, a to konkrétně u pokusu
+deklarace lokální proměnné <strong>s</strong>. Tato deklarace je sice uvedena
+až za řádky s&nbsp;proměnnými <strong>x2</strong> a <strong>y2</strong>, ovšem
+to u formy <strong>let</strong> s&nbsp;&bdquo;paralelním přiřazením&ldquo;
+nepomůže. Musíme namísto toho použít formu <strong>let*</strong>, která provádí
+přiřazení &bdquo;sekvenčně&ldquo;:</p>
+
+<pre>
+<strong>(defun correct-hypot</strong>
+  <strong>(x y)</strong>
+  <strong>(let* ((x2 (* x x))</strong>
+         <strong>(y2 (* y y))</strong>
+         <strong>(s  (+ x2 y2)))</strong>
+    <strong>(sqrt s)))</strong>
+</pre>
+
+<p>Nyní celý výpočet proběhne v&nbsp;pořádku:</p>
+
+<pre>
+<strong>(print (correct-hypot 3 4))</strong>
+5
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: u některých dialektů LISPu nalezneme
+odlišné chování. Například v&nbsp;Clojure postačuje použít
+<strong>let</strong>:</div></p>
+
+<pre>
+(defn handler
+    "Handler that is called by Ring for all requests received from user(s)."
+    [request]
+    (let [uri             (:uri request)
+          method          (:request-method request)
+          use-name        (get params "user-name")
+          use-id          (get params "user-id")]
+          ...
+          ...
+          ...))
+</pre>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Pravdivostní hodnoty a základní booleovské operace</h2>
+
+<p>V&nbsp;dialektu <i>Emacs Lisp</i> se pro reprezentaci pravdivostních hodnot
+<i>true</i> a <i>false</i> používají globální a současně neměnitelné speciální
+symboly nazvané <strong>t</strong> a <strong>nil</strong> (oba symboly jsou
+psány malými písmeny!). Jedna z&nbsp;těchto konstant je vždy výsledkem všech
+booleovských operací, ovšem jejich vstupní parametry mohou být libovolné
+(čísla, symboly atd.), s&nbsp;tím, že jakákoli hodnota rozdílná od
+<strong>nil</strong> je považována za logickou pravdu. Při tvorbě programů jsou
+k&nbsp;dispozici všechny tři základní booleovské operace vypsané
+v&nbsp;následující tabulce:</p>
+
+<table>
+<tr><th>#</th><th>Funkce</th><th>Význam</th></tr>
+<tr><td>1</td><td>and</td><td>logický součin</td></tr>
+<tr><td>2</td><td>or</td><td>logický součet</td></tr>
+<tr><td>3</td><td>not</td><td>logická negace</td></tr>
+</table>
+
+<p>První dvě výše vypsané operace jsou variadické, tj.&nbsp;lze jim předat
+libovolné množství parametrů. V&nbsp;případě funkce <strong>not</strong> má
+smysl použít jen jediný parametr:</p>
+
+<pre>
+<strong>(and t t)</strong>
+t
+&nbsp;
+<strong>(and t nil)</strong>
+nil
+&nbsp;
+<strong>(or t t)</strong>
+t
+&nbsp;
+<strong>(or t nil)</strong>
+t
+&nbsp;
+<strong>(or nil nil nil nil)</strong>
+nil
+&nbsp;
+<strong>(not nil)</strong>
+t
+&nbsp;
+<strong>(not t)</strong>
+nil
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: ve skutečnosti nejsou formy
+<strong>and</strong> a <strong>or</strong> obyčejnými funkcemi, ale speciálními
+formami. Je tomu tak z&nbsp;toho důvodu, aby bylo podporováno zkrácené
+vyhodnocování výrazů. Proto taky můžeme v&nbsp;některých případech
+<strong>and</strong> a <strong>or</strong> použít namísto podmínky
+<strong>if</strong> (záleží na tom, zda a jak potřebujeme zpracovat výslednou
+hodnotu):</div></p>
+
+<pre>
+<strong>(setq x 10)</strong>
+<strong>(print (and (&gt; x 0) "kladne"))</strong>
+"kladne"
+&nbsp;
+<strong>(setq y 0)</strong>
+<strong>(print (and (&gt; y 0) "kladne"))</strong>
+nil
+</pre>
+
+<p>v&nbsp;porovnání:</p>
+
+<pre>
+<strong>(setq x 10)</strong>
+<strong>(print (if (&gt; x 0) "kladne"))</strong>
+"kladne"
+&nbsp;
+<strong>(setq y 0)</strong>
+<strong>(print (if (&gt; y 0) "kladne"))</strong>
+nil
+</pre>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Další booleovské operace a predikáty</h2>
+
+<p>K&nbsp;dialektům programovacího jazyka LISP samozřejmě patří i množina <a
+href="https://www.tutorialspoint.com/lisp/lisp_predicates.htm">predikátů</a>,
+tj.&nbsp;funkcí, které na základě nějaké vyhodnocené podmínky vrací
+pravdivostní hodnotu. Většina predikátů končí znakem <strong>p</strong>, ale
+nalezneme zde i několik výjimek (není však samozřejmě nijak problematické si
+dodefinovat i ostatní predikáty končící otazníkem nebo znakem
+<strong>p</strong>). V&nbsp;Emacs Lispu nalezneme poměrně velké množství
+predikátů:</p>
+
+<table>
+<tr><th>Predikáty hodnot</th></tr>
+<tr><td>null</td></tr>
+<tr><td>zerop</td></tr>
+</table>
+
+<table>
+<tr><th>Predikáty typů (test na typ)</th></tr>
+<tr><td>atom</td></tr>
+<tr><td>arrayp</td></tr>
+<tr><td>bool-vector-p</td></tr>
+<tr><td>bufferp</td></tr>
+<tr><td>byte-code-function-p</td></tr>
+<tr><td>case-table-p</td></tr>
+<tr><td>char-or-string-p</td></tr>
+<tr><td>char-table-p</td></tr>
+<tr><td>commandp</td></tr>
+<tr><td>consp</td></tr>
+<tr><td>display-table-p</td></tr>
+<tr><td>floatp</td></tr>
+<tr><td>frame-configuration-p</td></tr>
+<tr><td>frame-live-p</td></tr>
+<tr><td>framep</td></tr>
+<tr><td>functionp</td></tr>
+<tr><td>integer-or-marker-p</td></tr>
+<tr><td>integerp</td></tr>
+<tr><td>keymapp</td></tr>
+<tr><td>listp</td></tr>
+<tr><td>markerp</td></tr>
+<tr><td>wholenump</td></tr>
+<tr><td>nlistp</td></tr>
+<tr><td>numberp</td></tr>
+<tr><td>number-or-marker-p</td></tr>
+<tr><td>overlayp</td></tr>
+<tr><td>processp</td></tr>
+<tr><td>sequencep</td></tr>
+<tr><td>stringp</td></tr>
+<tr><td>subrp</td></tr>
+<tr><td>symbolp</td></tr>
+<tr><td>syntax-table-p</td></tr>
+<tr><td>user-variable-p</td></tr>
+<tr><td>vectorp</td></tr>
+<tr><td>window-configuration-p</td></tr>
+<tr><td>window-live-p</td></tr>
+<tr><td>windowp</td></tr>
+</table>
+
+<p>Podívejme se nyní na několik jednoduchých příkladů použití predikátů:</p>
+
+<pre>
+<strong>(atom nil)</strong>
+t
+&nbsp;
+<strong>(atom t)</strong>
+t
+&nbsp;
+<strong>(atom 42)</strong>
+t
+&nbsp;
+<strong>(atom "string")</strong>
+t
+&nbsp;
+<strong>(atom '(1 2 3))</strong>
+nil
+</pre>
+
+<pre>
+<strong>(listp nil)</strong>
+t
+&nbsp;
+<strong>(listp t)</strong>
+nil
+&nbsp;
+<strong>(listp 42)</strong>
+nil
+&nbsp;
+<strong>(listp "string")</strong>
+nil
+&nbsp;
+<strong>(listp '(1 2 3))</strong>
+t
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: zvláštnost symbolu <strong>nil</strong>
+podtrhuje i to, že se současně jedná o <i>atom</i> i o <i>seznam</i>. Je tomu
+díky &bdquo;dualitě&ldquo; tohoto symbolu, který odpovídá prázdnému seznamu.
+Totéž tím pádem platí i pro prázdný seznam!</div></p>
+
+<p>Test, zda je hodnota <strong>nil</strong> (někdy lze použít pro logickou
+negaci):</p>
+
+<pre>
+<strong>(null nil)</strong>
+t
+&nbsp;
+<strong>(null t)</strong>
+nil
+&nbsp;
+<strong>(null 42)</strong>
+nil
+&nbsp;
+<strong>(null "string")</strong>
+nil
+&nbsp;
+<strong>(null '(1 2 3))</strong>
+nil
+</pre>
+
+<p>Test, zda je hodnota neprázdným seznamem:</p>
+
+<pre>
+<strong>(consp '(1.2))</strong>
+t
+&nbsp;
+<strong>(consp '( 1 2 3))</strong>
+t
+&nbsp;
+<strong>(consp '())</strong>
+nil
+&nbsp;
+<strong>(consp 42)</strong>
+nil
+</pre>
+
+<p>Test na nulovou hodnotu:</p>
+
+<pre>
+<strong>(zerop 0)</strong>
+t
+&nbsp;
+<strong>(zerop 42)</strong>
+nil
+</pre>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Řízení běhu programu &ndash; rozvětvení</h2>
+
+<p>Pro řízení běhu programu, tj.&nbsp;pro rozvětvení, nabízí <i>Emacs Lisp</i>
+poměrně velké množství různých speciálních forem. Základem je samozřejmě
+speciální forma nazvaná <strong>if</strong> s&nbsp;klasickým rozvětvením, ovšem
+skalní LISPaři v&nbsp;<i>Emacs Lispu</i> naleznou například i oblíbené
+<strong>cond</strong> či formy <strong>when</strong> a <strong>unless</strong>,
+jejichž použití může zpřehlednit zdrojový kód:</p>
+
+<table>
+<tr><th>#</th><th>Forma</th><th>Stručný popis</th></tr>
+<tr><td>1</td><td>if</td><td>rozdělení výpočtu do dvou větví na základě podmínky</td></tr>
+<tr><td>2</td><td>when</td><td>varianta <strong>if</strong> pro větší množství příkazů ve větvi &bdquo;then&ldquo;, viz též <a href="#k10">kapitolu 10</a></td></tr>
+<tr><td>3</td><td>unless</td><td>varianta <strong>if</strong> pro větší množství příkazů ve větvi &bdquo;else&ldquo;, viz též <a href="#k10">kapitolu 10</a></td></tr>
+<tr><td>4</td><td>cond</td><td>vícenásobné rozvětvení, LISPovská klasická a univerzální konstrukce, viz též <a href="#k11">jedenáctou kapitolu</a></a></td></tr>
+</table>
+
+<p>&bdquo;Klasické&ldquo; rozvětvení je řešeno speciální formou
+<strong>if</strong>. Tu lze zapsat dvěma způsoby. Buď jako &bdquo;plnou&ldquo;
+rozvětvovací konstrukci:</p>
+
+<pre>
+<strong>(if podmínka výraz1 výraz2)</strong>
+</pre>
+
+<p>Popř.&nbsp;je možné druhý výraz vynechat:</p>
+
+<pre>
+<strong>(if podmínka výraz1)</strong>
+</pre>
+
+<pre>
+<i>; na základě podmínky se vyhodnotí (a vrátí jako výsledek)</i>
+<i>; buď řetězec "mensi" nebo "vetsi"</i>
+<strong>(if (&lt; 1 2) "mensi" "vetsi")</strong>
+"mensi"
+</pre>
+
+<pre>
+<i>; opačná podmínka - je vyhodnocen pouze druhý řetězec</i>
+<strong>(if (&gt; 1 2) "mensi" "vetsi")</strong>
+"vetsi"
+</pre>
+
+<pre>
+<i>; test na ekvivalenci</i>
+<strong>(if (= 1 2) "rovno" "nerovno")</strong>
+"nerovno"
+</pre>
+
+<pre>
+<i>; další test na ekvivalenci</i>
+<strong>(if (= 1 1) "rovno" "nerovno")</strong>
+"rovno"
+</pre>
+
+<p>Příklad použití speciální formy <strong>if</strong> ve funkci:</p>
+
+<pre>
+<strong>(defun test-nuly</strong>
+  <strong>(x)</strong>
+  <strong>(if (zerop x)</strong>
+    <strong>"nula"</strong>
+    <strong>"nenulova hodnota"))</strong>
+</pre>
+
+<p>Zkrácená podoba <strong>if</strong>:</p>
+
+<pre>
+<strong>(defun test-nuly-2</strong>
+  <strong>(x)</strong>
+  <strong>(if (zerop x)</strong>
+    <strong>"nula"))</strong>
+&nbsp;
+<strong>(print (test-nuly-2 0))</strong>
+<strong>(print (test-nuly-2 1))</strong>
+</pre>
+
+<p>Formy <strong>if</strong> je možné v&nbsp;případě potřeby samozřejmě
+zanořovat. Příkladem může být rekurzivní funkce určená pro výpočet největšího
+společného dělitele dvou celočíselných hodnot:</p>
+
+<pre>
+<strong>(defun gcd</strong>
+  <strong>(x y)</strong>
+  <strong>(if (= x y) x</strong>
+              <strong>(if (&gt; x y)</strong>
+                  <strong>(gcd (- x y) y)</strong>
+                  <strong>(gcd x (- y x)))))</strong>
+&nbsp;
+<strong>(print (gcd 64 24))</strong>
+</pre>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Použití forem <strong>when</strong> a <strong>unless</strong></h2>
+
+<p>V&nbsp;některé části aplikace většinou potřebujeme na základě nějaké
+podmínky vykonat sekvenci příkazů. I v&nbsp;tomto případě je samozřejmě možné
+použít <strong>if</strong>, ovšem celá sekvence příkazů musí být vytvořena
+v&nbsp;jiné funkci či &bdquo;uzavřena&ldquo; do programového bloku tvořeného
+formou <strong>progn</strong>. Pokud například potřebujeme na základě
+vyhodnocené podmínky vypsat na standardní výstup zprávu a současně vrátit
+nějakou hodnotu, mohl by celý zápis vypadat například takto:</p>
+
+<pre>
+<strong>(setq a 20)</strong>
+<strong>(setq b 20)</strong>
+&nbsp;
+<strong>(if (zerop (- a b))</strong>
+    <strong>(progn</strong>
+         <strong>(print "shodne hodnoty")</strong>
+         <strong>(do-something)</strong>
+         <strong>(do-something-else)</strong>
+         <strong>(+ a b)))</strong>
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: pro zjednodušení se na formu
+<strong>progn</strong> můžeme dívat jako na programový blok v&nbsp;jiných
+programovacích jazycích, přičemž posledním příkazem je
+<strong>return</strong>.</div></p>
+
+<p>Pro zlepšení čitelnosti zdrojového kódu je možné použít formu
+<strong>when</strong>, která sice nedokáže provést úplné rozvětvení tak, jako
+forma <strong>if</strong> (zapisuje se vždy jen jedna větev), ale zato se za ni
+může napsat libovolné množství forem (příkazů), které se postupně vyhodnotí při
+splnění zadané podmínky. Výše uvedený příklad se nám tedy zjednoduší:</p>
+
+<pre>
+<strong>(setq a 20)</strong>
+<strong>(setq b 20)</strong>
+&nbsp;
+<strong>(when (zerop (- a b))</strong>
+      <strong>(print "shodne hodnoty")</strong>
+      <strong>(do-something)</strong>
+      <strong>(do-something-else)</strong>
+      <strong>(+ a b))</strong>
+</pre>
+
+<p>Opakem speciální formy <strong>when</strong> je forma nazvaná
+<strong>unless</strong>.  Jediným rozdílem je zde negace podmínky, což znamená,
+že <strong>unless</strong> lze přepsat na <strong>when</strong>, ovšem samotnou
+podmínku je zapotřebí negovat, což je samozřejmě daleko méně čitelné (a navíc
+vyžaduje zápis dalších závorek), než přímé použití <strong>unless</strong>:</p>
+
+<pre>
+<strong>(setq a 20)</strong>
+<strong>(setq b 20)</strong>
+&nbsp;
+<strong>(unless (zerop (- a b))</strong>
+      <strong>(print "rozdilne hodnoty")</strong>
+      <strong>(do-something)</strong>
+      <strong>(do-something-else)</strong>
+      <strong>(+ a b))</strong>
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: v&nbsp;některých LISPech nalezneme formu
+nazvanou <strong>if2</strong>. Této formě se nepředává jedna podmínka, ale hned
+dvě podmínky, které jsou vždy obě vyhodnoceny. Výsledkem je tedy kombinace dvou
+konstant t a nil (celkem čtyři možnosti). Proto také za oběma podmínkami
+následují čtyři výrazy, přičemž první výraz se vyhodnotí jen pokud jsou obě
+podmínky splněny (t t), druhý výraz se vyhodnotí, jen když je splněna první
+podmínka (t nil), třetí při splnění pouze druhé podmínky (nil t) a konečně
+čtvrtý výraz při nesplnění obou podmínek současně (nil nil).</div></p>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Vícenásobné rozvětvení &ndash; forma <strong>cond</strong></h2>
+
+<p>Speciální forma <strong>cond</strong> je pravděpodobně skalním lispařům
+dobře známá, protože se vlastně jedná o zobecnění rozeskoku na libovolný počet
+podmínek a větví. Této formě se předává předem neomezený počet dvojic, kde
+první prvek dvojice představuje podmínku a druhý prvek pak tělo (výraz), který
+se zavolá při splnění této podmínky. Výsledek vybraného výrazu je současně i
+výsledkem vyhodnocení celé formy <strong>cond</strong> (další podmínky se tedy
+již netestují!). Podmínek může být specifikováno libovolné množství a bývá
+zvykem u poslední podmínky pouze zapsat <strong>T</strong> (<i>true</i>), což
+by například v&nbsp;Javě či C odpovídalo větvi <strong>default</strong>
+v&nbsp;konstrukci <strong>switch</strong>:</p>
+
+<pre>
+<strong>(defun sgn</strong>
+  <strong>(n)</strong>
+  <strong>(cond</strong>
+        <strong>((&lt; n 0)      'negative)</strong>
+        <strong>((&gt; n 0)      'positive)</strong>
+        <strong>((zerop n)    'zero)))</strong>
+</pre>
+
+<pre>
+<strong>(print (sgn -10))</strong>
+negative
+&nbsp;
+<strong>(print (sgn 0))</strong>
+zero
+&nbsp;
+<strong>(print (sgn 10))</strong>
+positive
+&nbsp;
+</pre>
+
+<p>Alternativně je možné namísto poslední podmínky vložit T (default):</p>
+
+<pre>
+<strong>(defun sgn-2</strong>
+  <strong>(n)</strong>
+  <strong>(cond</strong>
+        <strong>((&lt; n 0)      'negative)</strong>
+        <strong>((&gt; n 0)      'positive)</strong>
+        <strong>(t            'zero)))</strong>
+</pre>
+
+<p>Počet větví není omezen, takže můžeme velmi elegantně přidat i test, zda je
+předaná hodnota skutečně číslem:</p>
+
+<pre>
+<strong>(defun sgn-3</strong>
+  <strong>(n)</strong>
+  <strong>(cond</strong>
+        <strong>((not (numberp n))  'not-a-number)</strong>
+        <strong>((&lt; n 0)            'negative)</strong>
+        <strong>((&gt; n 0)            'positive)</strong>
+        <strong>(t                  'zero)))</strong>
+</pre>
+
+<pre>
+<strong>(print (sgn-3 -10))</strong>
+negative
+&nbsp;
+<strong>(print (sgn-3 0))</strong>
+zero
+&nbsp;
+<strong>(print (sgn-3 10))</strong>
+positive
+&nbsp;
+<strong>(print (sgn-3 nil))</strong>
+not-a-number
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Programové smyčky ve funkcionálních jazycích?</h2>
+
+<p>Dostáváme se k&nbsp;další vlastnosti klasických LISPů. Tyto jazyky totiž,
+podobně jako některé další funkcionálně pojaté programovací jazyky, preferují
+rekurzi před masivním používáním programových smyček. Jsou pro to samozřejmě
+dobré důvody, jak teoretické, tak i praktické. Ve skutečnosti je však Emacs
+Lisp jazykem orientovaným na praktické použití, takže ve skutečnosti obsahuje
+&bdquo;nefunkcionální&ldquo; smyčku <strong>while</strong> (samozřejmě nejde o
+příkaz, ale v&nbsp;tomto případě o speciální formu), popř.&nbsp;o makra
+inspirovaná Common Lispem. Vraťme se však k&nbsp;rekurzi. V&nbsp;Emacs Lispu je
+většinou možné použít přímý zápis rekurze, tj.&nbsp;v&nbsp;těle vytvářené
+funkce se může objevit volání této funkce. Zcela typickým příkladem rekurzivní
+funkce je funkce pro výpočet faktoriálu, jejíž jednoduchá varianta (neochráněná
+před všemi typy vstupů) může vypadat takto:</p>
+
+<pre>
+(defun factorial (n)
+  (if (&lt;= n 1)
+    1
+    (* n (factorial (- n 1)))))
+&nbsp;
+(print (factorial 10))
+</pre>
+
+<p>Samozřejmě je možné namísto <strong>if</strong> použít
+<strong>cond</strong>, ovšem v&nbsp;tomto případě k&nbsp;žádnému výraznému
+zkrácení funkce nedojde:</p>
+
+<pre>
+(defun factorial (n)
+  (cond ((&lt;= n 1) 1)
+        (t (* n (factorial (- n 1))))))
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Základní programové smyčky založené na speciální formě <strong>while</strong></h2>
+
+<p>Programové smyčky je možné v&nbsp;jazyku Emacs Lisp vytvářet především
+s&nbsp;využitím speciální formy nazvané příhodně <strong>while</strong>. Bude
+se jednat o univerzální smyčky s&nbsp;testem na začátku; s&nbsp;pomocí této
+smyčky lze implementovat prakticky libovolnou jinou programovou smyčku. Ukažme
+si první příklad, v&nbsp;němž je smyčka <strong>while</strong> použita pro
+získání sekvence hodnot od 0 do 14. Tyto hodnoty budou tvořit vstup pro výpočet
+faktoriálu:</p>
+
+<pre>
+<strong>(defun factorial (n)</strong>
+  <strong>(cond ((&lt;= n 1) 1)</strong>
+        <strong>(t (* n (factorial (- n 1))))))</strong>
+&nbsp;
+<strong>(setq n 0)</strong>
+<strong>(while (&lt; n 15)</strong>
+       <strong>(print (factorial n))</strong>
+       <strong>(setq n (1+ n)))</strong>
+</pre>
+
+<p>Ve skutečnosti je možné přepsat i samotný výpočet faktoriálu takovým
+způsobem, aby se v&nbsp;něm namísto rekurze použila běžná programová
+smyčka:</p>
+
+<pre>
+<strong>(defun factorial (n)</strong>
+  <strong>(let ((accum 1))</strong>
+    <strong>(while (&gt; n 0)</strong>
+           <strong>(setq accum (* accum n))</strong>
+           <strong>(setq n (1- n)))</strong>
+    <strong>accum))</strong>
+&nbsp;
+<strong>(setq n 0)</strong>
+<strong>(while (&lt; n 15)</strong>
+       <strong>(print (factorial n))</strong>
+       <strong>(setq n (1+ n)))</strong>
+</pre>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Použití makra <strong>dotimes</strong></h2>
+
+<p>V&nbsp;některých programech může být poměrně užitečné makro nazvané
+jednoduše a přitom příhodně <strong>dotimes</strong>, které dokáže nějaký výraz
+(formu) opakovat <i>n</i> krát. Přitom toto makro může v&nbsp;každé iteraci
+(opakování) nastavit zvolenou lokální proměnnou na aktuální hodnotu počitadla,
+přičemž se hodnota počitadla v&nbsp;první iteraci vždy nastavuje na nulu a
+v&nbsp;poslední iteraci dosahuje zadaného počtu opakování-1. Vzdáleně tedy
+můžeme toto makro považovat za ekvivalent programové smyčky <strong>for i in
+range(n):</strong> v&nbsp;programovacím jazyku <i>Python</i> či ekvivalent
+k&nbsp;počítané smyčce <strong>for (int i = 0; i&lt;n; i++)</strong> známé
+z&nbsp;céčka (zde bez možnosti mít lokální proměnnou jako počitadlo), C++, Javy
+atd. Vzhledem k&nbsp;tomu, že se předpokládá, že forma &ndash; tělo smyčky
+&ndash; předaná makru <strong>dotimes</strong> bude mít nějaký vedlejší efekt,
+nejedná se sice o čistě funkcionální přístup, nicméně makro
+<strong>dotimes</strong> může být skutečně velmi užitečné.</p>
+
+<p>V&nbsp;jednoduchém demonstračním příkladu, který si ukážeme, se na
+standardní výstup vypisuje převrácená hodnota celých čísel od 0 do 9. Vedlejším
+efektem je v&nbsp;tomto případě samotný výpis na standardní výstup:</p>
+
+<pre>
+<strong>(dotimes (i 10)</strong>
+  <strong>(print (/ 1.0 i)))</strong>
+</pre>
+
+<p>S&nbsp;výsledky:</p>
+
+<pre>
+1.0e+INF
+1.0
+0.5
+0.3333333333333333
+0.25
+0.2
+0.16666666666666666
+0.14285714285714285
+0.125
+0.1111111111111111
+</pre>
+
+<p>Podobně můžeme přepsat i výpočet faktoriálu do podoby, která více odpovídá
+imperativnímu programování:</p>
+
+<pre>
+<strong>(defun factorial (n)</strong>
+  <strong>(setq accumulator 1)</strong>
+  <strong>(dotimes (value n)</strong>
+    <strong>(setq accumulator (* accumulator (1+ value))))</strong>
+  <strong>accumulator)</strong>
+&nbsp;
+<strong>(dotimes (n 15)</strong>
+  <strong>(print (factorial n)))</strong>
+</pre>
+
+<p>S&nbsp;výsledky:</p>
+
+<pre>
+1
+1
+2
+6
+24
+120
+720
+5040
+40320
+362880
+3628800
+39916800
+479001600
+6227020800
+87178291200
+</pre>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Makro <strong>dolist</strong></h2>
+
+<p>Makro <strong>dolist</strong> umožňuje postupně procházet všemi prvky
+nějakého seznamu. Opět se očekává, že se při průchodu budou volat nějaké funkce
+s&nbsp;vedlejším efektem (například voláním <strong>print</strong>), celé
+použití <strong>dolist</strong> tak připomíná programové smyčky typu
+<strong>for-each</strong> známé z&nbsp;jiných programovacích jazyků.</p>
+
+<p>Podívejme se na velmi jednoduchý příklad s&nbsp;postupným tiskem všech prvků
+nějakého seznamu:</p>
+
+<pre>
+<strong>(setq seznam '(42 'symbol "retezec" nil))</strong>
+&nbsp;
+<strong>(dolist (prvek seznam)</strong>
+  <strong>(print prvek))</strong>
+</pre>
+
+<p>Poněkud násilně můžeme přepsat i výpočet faktoriálu takovým způsobem, aby se
+v&nbsp;něm objevily generované seznamy vstupních hodnot:</p>
+
+<pre>
+<strong>(defun factorial (n)</strong>
+  <strong>(setq accumulator 1)</strong>
+  <strong>(dolist (value (number-sequence 1 n))</strong>
+    <strong>(setq accumulator (* accumulator value)))</strong>
+  <strong>accumulator)</strong>
+&nbsp;
+<strong>(setq inputs (number-sequence 0 14))</strong>
+<strong>(dolist (n inputs)</strong>
+  <strong>(print (factorial n)))</strong>
+</pre>
+
+<p>Opět s&nbsp;výsledky:</p>
+
+<pre>
+1
+1
+2
+6
+24
+120
+720
+5040
+40320
+362880
+3628800
+39916800
+479001600
+6227020800
+87178291200
+</pre>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Interaktivní funkce</h2>
+
+<p>Samotné LISPovské funkce jsou skutečně základními stavebními bloky všech
+modulů naprogramovaných v&nbsp;Emacs Lispu. Ovšem pro jejich zavolání většinou
+potřebujeme ještě jednu maličkost &ndash; možnost vytvořit z&nbsp;funkce
+příkaz, který se zavolá buď přes klávesovou zkratku <strong>M-x
+jméno-příkazu</strong> nebo se namapuje na nějakou uživatelem zvolenou
+klávesovou zkratku. V&nbsp;Emacs Lispu je nutné toto chování funkcí vynutit
+uvedením speciální formy <strong>interactive</strong>. Typicky se této
+speciální formě předává řetězec, kterým je specifikováno, jakým způsobem se
+budou nyní již interaktivní funkci-příkazu předávat parametry. V&nbsp;tomto
+řetězci je možné definovat například:</p>
+
+<table>
+<tr><th>Znak předaný formě <strong>interactive</strong></th><th>Význam</th></tr>
+<tr><td>b</td><td>jméno bufferu</td></tr>
+<tr><td>d</td><td>pozice kurzoru (celé kladné číslo)</td></tr>
+<tr><td>f</td><td>jméno souboru</td></tr>
+<tr><td>k</td><td>sekvence kláves</td></tr>
+<tr><td>n</td><td>číslo přečtené z&nbsp;minibufferu</td></tr>
+<tr><td>s</td><td>řetězec</td></tr>
+<tr><td>p</td><td>prefix zadaný klávesou <strong>C-u</strong></td></tr>
+</table>
+
+<p>Podívejme se nyní na velmi jednoduchý příklad. Nejdříve opět použijeme
+definici faktoriálu:</p>
+
+<pre>
+<strong>(defun factorial (n)</strong>
+  <strong>(let ((accum 1))</strong>
+    <strong>(while (&gt; n 0)</strong>
+           <strong>(setq accum (* accum n))</strong>
+           <strong>(setq n (1- n)))</strong>
+    <strong>accum))</strong>
+</pre>
+
+<p>Následně nadefinujeme interaktivní funkci, která získá prefix zadaný
+klávesou <strong>C-u</strong>:</p>
+
+<pre>
+<strong>(defun factorial-comp</strong>
+  <strong>(n)</strong>
+  <strong>(interactive "p")</strong>
+  <strong>(message "The result is %d" (factorial n)))</strong>
+</pre>
+
+<p>Postup použití bude následující:</p>
+
+<pre>
+C-u číslo M-x factorial-comp [Enter])
+</pre>
+
+<p>Praktičtější ovšem bude získat číslo z&nbsp;minibuferu:</p>
+
+<pre>
+<strong>(defun factorial-comp</strong>
+  <strong>(n)</strong>
+  <strong>(interactive "n")</strong>
+  <strong>(message "The result is %d" (factorial n)))</strong>
+</pre>
+
+<p>Po spuštění pomocí:</p>
+
+<pre>
+M-x factorial-comp [Enter])
+</pre>
+
+<p>Bude Emacs čekat na zadání čísla do minibuferu (implicitně oblast vlevo
+dole) a teprve poté vypočítá a vypíše výsledek.</p>
+
+<p><div class="rs-tip-major">Poznámka: interaktivním funkcím bude věnován
+samostatný článek.</div></p>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Otestování jednoduché interaktivní funkce</h2>
+
+<p>Podívejme se nyní, jakým způsobem je možné použít výše popsanou interaktivní
+funkci pro výpočet faktoriálu:</p>
+
+<img src="https://i.iinfo.cz/images/389/emacs3-1.png" class="image-337877" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 1: Výchozí podoba scratch bufferu.</i></p>
+
+<img src="https://i.iinfo.cz/images/389/emacs3-2.png" class="image-337878" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 2: Zápis definice obou funkcí přímo ve scratch bufferu.</i></p>
+
+<img src="https://i.iinfo.cz/images/389/emacs3-3.png" class="image-337879" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 3: Vložení definice obou funkcí do interpretru Emacs
+Lispu.</i></p>
+
+<img src="https://i.iinfo.cz/images/389/emacs3-4.png" class="image-337880" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 4: Zavolání interaktivní funkce z&nbsp;klávesnice, předání
+hodnoty 10 přes C-u.</i></p>
+
+<img src="https://i.iinfo.cz/images/389/emacs3-5.png" class="image-337881" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 5: Zobrazená odpověď (výsledek).</i></p>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Zdrojové kódy většiny dnes popsaných demonstračních příkladů byly uloženy do
+Git repositáře dostupného na adrese <a
+href="https://github.com/tisnik/elisp-examples">https://github.com/tisnik/elisp-examples</a>
+(stále na GitHubu :-). V&nbsp;případě, že nebudete chtít klonovat celý
+repositář (ten je ovšem stále velmi malý, dnes má doslova několik kilobajtů),
+můžete namísto toho použít odkazy na jednotlivé příklady, které naleznete
+v&nbsp;následující tabulce:</p>
+
+<table>
+<tr><th> #</th><th>Demonstrační příklad</th><th>Popis</th><th>Cesta</th></tr>
+<tr><td> 1</td><td>01_varibles.el</td><td>použití globálních proměnných</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/01_varibles.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/01_varibles.el</a></td></tr>
+<tr><td> 2</td><td>02_variable_docstrings.el</td><td>dokumentační řetězce</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/02_variable_docstrings.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/02_variable_docstrings.el</a></td></tr>
+<tr><td> 3</td><td>03_let.el</td><td>forma <strong>let</strong> a lokální proměnné</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/03_let.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/03_let.el</a></td></tr>
+<tr><td> 4</td><td>04_parallel_let.el</td><td>paralelní <strong>let</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/04_parallel_let.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/04_parallel_let.el</a></td></tr>
+<tr><td> 5</td><td>05_sequential_let.el</td><td>sekvenční <strong>let*</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/05_sequential_let.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/05_sequential_let.el</a></td></tr>
+<tr><td> 6</td><td>06_boolean_ops.el</td><td>Booleovské operace</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/06_boolean_ops.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/06_boolean_ops.el</a></td></tr>
+<tr><td> 7</td><td>07_predicates.el</td><td>základní predikáty</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/07_predicates.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/07_predicates.el</a></td></tr>
+<tr><td> 8</td><td>08_control_structures.el</td><td>řídicí struktury Elispu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/08_control_structures.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/08_control_structures.el</a></td></tr>
+<tr><td> 9</td><td>09_cond.el</td><td>použití speciální formy <strong>cond</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/09_cond.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/09_cond.el</a></td></tr>
+<tr><td>10</td><td>10_cond2.el</td><td>použití speciální formy <strong>cond</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/10_cond2.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/10_cond2.el</a></td></tr>
+<tr><td>11</td><td>11_factorial_cond.el</td><td>výpočet faktoriálu používající <strong>cond</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/11_factorial_cond.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/11_factorial_cond.el</a></td></tr>
+<tr><td>12</td><td>12_factorial_while.el</td><td>výpočet faktoriálu používající <strong>while</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/12_factorial_while.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/12_factorial_while.el</a></td></tr>
+<tr><td>13</td><td>13_dotimes.el</td><td>makro <strong>dotimes</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/13_dotimes.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/13_dotimes.el</a></td></tr>
+<tr><td>14</td><td>14_factorial_dotimes.el</td><td>výpočet faktoriálu s&nbsp;využitím <strong>dotimes</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/14_factorial_dotimes.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/14_factorial_dotimes.el</a></td></tr>
+<tr><td>15</td><td>15_dolist.el</td><td>makro <strong>dolist</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/15_dolist.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/15_dolist.el</a></td></tr>
+<tr><td>16</td><td>16_factorial_dolist.el</td><td>výpočet faktoriálu s&nbsp;využitím <strong>dolist</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/16_factorial_dolist.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/16_factorial_dolist.el</a></td></tr>
+<tr><td>17</td><td>17_factorial_interactive.el</td><td>interaktivní funkce</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-2/17_factorial_interactive.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-2/17_factorial_interactive.el</a></td></tr>
+</table>
+
+<p>Všechny příklady kromě posledního se mohou spouštět z&nbsp;příkazové řádky
+následujícím způsobem:</p>
+
+<pre>
+emacs --script priklad1.el
+</pre>
+
+
+
+<p><a name="k19"></a></p>
+<h2 id="k19">19. Literatura</h2>
+
+<ol>
+
+<li>McCarthy<br />
+<i>&bdquo;Recursive functions of symbolic expressions and their computation by machine, part I&ldquo;</i><br />
+1960
+</li>
+
+<li>Guy L. Steele<br />
+<i>&bdquo;History of Scheme&ldquo;</i><br />
+2006, Sun Microsystems Laboratories
+</li>
+
+<li>
+Kolář J., Muller K.:<br />
+<i>&bdquo;Speciální programovací jazyky&ldquo;</i><br />
+Praha 1981
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 9, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., October 1987
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 10, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., September 1988
+</li>
+
+<li>McCarthy, John; Abrahams, Paul W.; Edwards, Daniel J.; Hart, Timothy P.; Levin, Michael I.<br />
+<i>&bdquo;LISP 1.5 Programmer's Manual&ldquo;</i><br />
+MIT Press. ISBN 0 262 130 1 1 4
+</li>
+
+<li>Carl Hewitt; Peter Bishop and Richard Steiger<br />
+<i>&bdquo;A Universal Modular Actor Formalism for Artificial Intelligence&ldquo;</i><br />
+1973
+</li>
+
+<li>Feiman, J.<br />
+<i>&bdquo;The Gartner Programming Language Survey (October 2001)&ldquo;</i><br />
+Gartner Advisory
+</li>
+
+<li>Harold Abelson, Gerald Jay Sussman, Julie Sussman:<br />
+<i>Structure and Interpretation of Computer Programs</i><br />
+MIT Press. 1985, 1996 (a možná vyšel i další přetisk)
+</li>
+
+<li>Paul Graham:<br />
+<i>On Lisp</i><br />
+Prentice Hall, 1993<br />
+Dostupné online na stránce <a href="http://www.paulgraham.com/onlisptext.html">http://www.paulgraham.com/onlisptext.html</a>
+</li>
+
+</ol>
+
+
+
+<p><a name="k20"></a></p>
+<h2 id="k20">20. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>The Roots of Lisp<br />
+<a href="http://www.paulgraham.com/rootsoflisp.html">http://www.paulgraham.com/rootsoflisp.html</a>
+</li>
+
+<li>Evil (Emacs Wiki)<br />
+<a href="https://www.emacswiki.org/emacs/Evil">https://www.emacswiki.org/emacs/Evil</a>
+</li>
+
+<li>Evil (na GitHubu)<br />
+<a href="https://github.com/emacs-evil/evil">https://github.com/emacs-evil/evil</a>
+</li>
+
+<li>Evil (na stránkách repositáře MELPA)<br />
+<a href="https://melpa.org/#/evil">https://melpa.org/#/evil</a>
+</li>
+
+<li>Evil Mode: How I Switched From VIM to Emacs<br />
+<a href="https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html">https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html</a>
+</li>
+
+<li>GNU Emacs (home page)<br />
+<a href="https://www.gnu.org/software/emacs/">https://www.gnu.org/software/emacs/</a>
+</li>
+
+<li>GNU Emacs (texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs">http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs</a>
+</li>
+
+<li>An Introduction To Using GDB Under Emacs<br />
+<a href="http://tedlab.mit.edu/~dr/gdbintro.html">http://tedlab.mit.edu/~dr/gdbintro.html</a>
+</li>
+
+<li>An Introduction to Programming in Emacs Lisp<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html</a>
+</li>
+
+<li>27.6 Running Debuggers Under Emacs<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html">https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html</a>
+</li>
+
+<li>GdbMode<br />
+<a href="http://www.emacswiki.org/emacs/GdbMode">http://www.emacswiki.org/emacs/GdbMode</a>
+</li>
+
+<li>Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Emacs">https://en.wikipedia.org/wiki/Emacs</a>
+</li>
+
+<li>Emacs timeline<br />
+<a href="http://www.jwz.org/doc/emacs-timeline.html">http://www.jwz.org/doc/emacs-timeline.html</a>
+</li>
+
+<li>Emacs Text Editors Family<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily">http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse (část 2: vyhledávání a nahrazování textu)<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/</a>
+</li>
+
+<li>Emacs/Evil-mode - A basic reference to using evil mode in Emacs<br />
+<a href="http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet">http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet</a>
+</li>
+
+<li>From Vim to Emacs+Evil chaotic migration guide<br />
+<a href="https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/">https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/</a>
+</li>
+
+<li>Introduction to evil-mode {video)<br />
+<a href="https://www.youtube.com/watch?v=PeVQwYUxYEg">https://www.youtube.com/watch?v=PeVQwYUxYEg</a>
+</li>
+
+<li>EINE (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/EINE">http://www.emacswiki.org/emacs/EINE</a>
+</li>
+
+<li>EINE (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EINE">http://texteditors.org/cgi-bin/wiki.pl?EINE</a>
+</li>
+
+<li>ZWEI (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/ZWEI">http://www.emacswiki.org/emacs/ZWEI</a>
+</li>
+
+<li>ZWEI (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?ZWEI">http://texteditors.org/cgi-bin/wiki.pl?ZWEI</a>
+</li>
+
+<li>Zmacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Zmacs">https://en.wikipedia.org/wiki/Zmacs</a>
+</li>
+
+<li>Zmacs (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?Zmacs">http://texteditors.org/cgi-bin/wiki.pl?Zmacs</a>
+</li>
+
+<li>TecoEmacs (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/TecoEmacs">http://www.emacswiki.org/emacs/TecoEmacs</a>
+</li>
+
+<li>Micro Emacs<br />
+<a href="http://www.emacswiki.org/emacs/MicroEmacs">http://www.emacswiki.org/emacs/MicroEmacs</a>
+</li>
+
+<li>Micro Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/MicroEMACS">https://en.wikipedia.org/wiki/MicroEMACS</a>
+</li>
+
+<li>EmacsHistory<br />
+<a href="http://www.emacswiki.org/emacs/EmacsHistory">http://www.emacswiki.org/emacs/EmacsHistory</a>
+</li>
+
+<li>Seznam editorů s ovládáním podobným Emacsu či kompatibilních s příkazy Emacsu<br />
+<a href="http://www.finseth.com/emacs.html">http://www.finseth.com/emacs.html</a>
+</li>
+
+<li>evil-numbers<br />
+<a href="https://github.com/cofi/evil-numbers">https://github.com/cofi/evil-numbers</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (1.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (2.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (3): Nemiver<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (4): KDbg<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (5): ladění aplikací v editorech Emacs a Vim<br />
+<a href="https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/">https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/</a>
+</li>
+
+<li>Org mode<br />
+<a href="https://orgmode.org/">https://orgmode.org/</a>
+</li>
+
+<li>The Org Manual<br />
+<a href="https://orgmode.org/manual/index.html">https://orgmode.org/manual/index.html</a>
+</li>
+
+<li>Kakoune (modální textový editor)<br />
+<a href="http://kakoune.org/">http://kakoune.org/</a>
+</li>
+
+<li>Vim-style keybinding in Emacs/Evil-mode<br />
+<a href="https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8">https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8</a>
+</li>
+
+<li>Emacs - jak začít<br />
+<a href="http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit">http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit</a>
+</li>
+
+<li>Programovací jazyk LISP a LISP machines<br />
+<a href="https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/">https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/</a>
+</li>
+
+<li>Evil-surround<br />
+<a href="https://github.com/emacs-evil/evil-surround">https://github.com/emacs-evil/evil-surround</a>
+</li>
+
+<li>Spacemacs<br />
+<a href="http://spacemacs.org/">http://spacemacs.org/</a>
+</li>
+
+<li>Lisp: Common Lisp, Racket, Clojure, Emacs Lisp<br />
+<a href="http://hyperpolyglot.org/lisp">http://hyperpolyglot.org/lisp</a>
+</li>
+
+<li>Common Lisp, Scheme, Clojure, And Elisp Compared<br />
+<a href="http://irreal.org/blog/?p=725">http://irreal.org/blog/?p=725</a>
+</li>
+
+<li>Does Elisp Suck?<br />
+<a href="http://irreal.org/blog/?p=675">http://irreal.org/blog/?p=675</a>
+</li>
+
+<li>Emacs pro mírně pokročilé (9): Elisp<br />
+<a href="https://www.root.cz/clanky/emacs-elisp/">https://www.root.cz/clanky/emacs-elisp/</a>
+</li>
+
+<li>If I want to learn lisp, are emacs and elisp a good choice?<br />
+<a href="https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/">https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/</a>
+</li>
+
+<li>Clojure(Script) Interactive Development Environment that Rocks!<br />
+<a href="https://github.com/clojure-emacs/cider">https://github.com/clojure-emacs/cider</a>
+</li>
+
+<li>An Introduction to Emacs Lisp<br />
+<a href="https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html">https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html</a>
+</li>
+
+<li>Emergency Elisp<br />
+<a href="http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html">http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html</a>
+</li>
+
+<li>Racket<br />
+<a href="https://racket-lang.org/">https://racket-lang.org/</a>
+</li>
+
+<li>The Racket Manifesto<br />
+<a href="http://felleisen.org/matthias/manifesto/">http://felleisen.org/matthias/manifesto/</a>
+</li>
+
+<li>MIT replaces Scheme with Python<br />
+<a href="https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/">https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/</a>
+</li>
+
+<li>Adventures in Advanced Symbolic Programming<br />
+<a href="http://groups.csail.mit.edu/mac/users/gjs/6.945/">http://groups.csail.mit.edu/mac/users/gjs/6.945/</a>
+</li>
+
+<li>Why MIT Switched from Scheme to Python (2009)<br />
+<a href="https://news.ycombinator.com/item?id=14167453">https://news.ycombinator.com/item?id=14167453</a>
+</li>
+
+<li>Starodávná stránka XLispu<br />
+<a href="http://www.xlisp.org/">http://www.xlisp.org/</a>
+</li>
+
+<li>AutoLISP<br />
+<a href="https://en.wikipedia.org/wiki/AutoLISP">https://en.wikipedia.org/wiki/AutoLISP</a>
+</li>
+
+<li>Seriál PicoLisp: minimalistický a výkonný interpret Lispu<br />
+<a href="https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/">https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/</a>
+</li>
+
+<li>Common Lisp<br />
+<a href="https://common-lisp.net/">https://common-lisp.net/</a>
+</li>
+
+<li>Getting Going with Common Lisp<br />
+<a href="https://cliki.net/Getting%20Started">https://cliki.net/Getting%20Started</a>
+</li>
+
+<li>Online Tutorial (Common Lisp)<br />
+<a href="https://cliki.net/online%20tutorial">https://cliki.net/online%20tutorial</a>
+</li>
+
+<li>Guile Emacs<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacs">https://www.emacswiki.org/emacs/GuileEmacs</a>
+</li>
+
+<li>Guile Emacs History<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacsHistory">https://www.emacswiki.org/emacs/GuileEmacsHistory</a>
+</li>
+
+<li>Guile is a programming language<br />
+<a href="https://www.gnu.org/software/guile/">https://www.gnu.org/software/guile/</a>
+</li>
+
+<li>MIT Scheme<br />
+<a href="http://groups.csail.mit.edu/mac/projects/scheme/">http://groups.csail.mit.edu/mac/projects/scheme/</a>
+</li>
+
+<li>SIOD: Scheme in One Defun<br />
+<a href="http://people.delphiforums.com/gjc//siod.html">http://people.delphiforums.com/gjc//siod.html</a>
+</li>
+
+<li>CommonLispForEmacs<br />
+<a href="https://www.emacswiki.org/emacs/CommonLispForEmacs">https://www.emacswiki.org/emacs/CommonLispForEmacs</a>
+</li>
+
+<li>Elisp: print, princ, prin1, format, message<br />
+<a href="http://ergoemacs.org/emacs/elisp_printing.html">http://ergoemacs.org/emacs/elisp_printing.html</a>
+</li>
+
+<li>Special Forms in Lisp<br />
+<a href="http://www.nhplace.com/kent/Papers/Special-Forms.html">http://www.nhplace.com/kent/Papers/Special-Forms.html</a>
+</li>
+
+<li>Basic Building Blocks in LISP<br />
+<a href="https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm">https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm</a>
+</li>
+
+<li>Introduction to LISP - University of Pittsburgh<br />
+<a href="https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf">https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf</a>
+</li>
+
+<li>Why don't people use LISP<br />
+<a href="https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/">https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2018</small></p>
+</body>
+</html>
+
