@@ -1,0 +1,1487 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Úpravy Emacsu a tvorba nových modulů s využitím Emacs Lispu</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Úpravy Emacsu a tvorba nových modulů s využitím Emacs Lispu</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>Na předchozí článek, v&nbsp;němž jsme se seznámili se základními vlastnostmi režimu Evil, dnes nepřímo navážeme. Ukážeme si, jakým způsobem je možné měnit chování Emacsu, a to pomocí funkcí naprogramovaných v&nbsp;Emacs Lispu. Napřed si ovšem popíšeme základní vlastnosti tohoto jazyka.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Úpravy Emacsu a tvorba nových modulů s&nbsp;využitím Emacs Lispu</a></p>
+<p><a href="#k02">2. LISP aneb jazyk, který nám nepřinesl AI</a></p>
+<p><a href="#k03">3. Rozdíly mezi různými dialekty programovacího jazyka LISP</a></p>
+<p><a href="#k04">4. Je Emacs Lisp funkcionálním jazykem?</a></p>
+<p><a href="#k05">5. Základní nastavení Emacsu při zkoušení možností Emacs LISPu</a></p>
+<p><a href="#k06">6. Scratch buffer ve funkci REPLu</a></p>
+<p><a href="#k07">7. Spouštění příkladů naprogramovaných v&nbsp;Elispu z&nbsp;příkazového řádku</a></p>
+<p><a href="#k08">8. Základní datové typy Elispu</a></p>
+<p><a href="#k09">9. Prázdný seznam a rekurzivní datové struktury založené na seznamech</a></p>
+<p><a href="#k10">10. Tečka-dvojice: základ pro tvorbu složitějších datových struktur</a></p>
+<p><a href="#k11">11. Základní funkce pro konstrukci seznamů a pro přístup k&nbsp;prvkům seznamů</a></p>
+<p><a href="#k12">12. Definice vlastních funkcí</a></p>
+<p><a href="#k13">13. Funkce s&nbsp;nepovinnými parametry</a></p>
+<p><a href="#k14">14. Funkce vyššího řádu</a></p>
+<p><a href="#k15">15. Anonymní funkce</a></p>
+<p><a href="#k16">16. Výpočet faktoriálu realizovaný funkcí vyššího řádu</a></p>
+<p><a href="#k17">17. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k18">18. Guile Emacs</a></p>
+<p><a href="#k19">19. Literatura</a></p>
+<p><a href="#k20">20. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Úpravy Emacsu a tvorba nových modulů s&nbsp;využitím Emacs Lispu</h2>
+
+<p>Textový editor Emacs si získal podporu mezi uživateli mj.&nbsp;i proto, že
+je široce konfigurovatelný a navíc pro něj vzniklo téměř nepřeberné množství
+různých modulů (minimálně několik tisíc), přičemž některé moduly dělají
+z&nbsp;původně textového editoru webový prohlížeč, kalendář, mailového klienta,
+integrované vývojové prostředí s&nbsp;rozhraním pro debugger atd. Je to
+umožněno díky tomu, že se samotný Emacs (velmi zjednodušeně řečeno) skládá ze
+tří částí: základního &bdquo;engine&ldquo; naprogramovaného v&nbsp;céčku, který
+se stará o ovládání displeje, použití klávesnice, myši, operační paměti atd.,
+dále pak z&nbsp;virtuálního stroje programovacího jazyka Emacs Lisp a konečně
+ze skriptů psaných právě v&nbsp;Emacs Lispu, které základní engine využívají a
+realizují tak všechny uživatelsky viditelné funkce. A právě Emacs Lispem
+(Elispem), resp.&nbsp;přesněji řečeno základy, na nichž je tento jazyk
+postaven, se budeme zabývat v&nbsp;dnešním článku.</p>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. LISP aneb jazyk, který nám nepřinesl AI</h2>
+
+<p><a href="http://imgs.xkcd.com/comics/lisp_cycles.png">Syntaxe jazyka LISP je již po 50 let zdrojem inspirace pro autory vtipů</a></p>
+
+<p>Historie programovacího jazyka <i>LISP</i> je velmi dlouhá, neboť se jedná o
+jeden z&nbsp;nejstarších vyšších programovacích jazyků vůbec. Autorem
+teoretického návrhu tohoto jazyka je <i>John McCarthy</i>, který se již
+v&nbsp;roce 1956 připojil k&nbsp;týmu, jehož úkolem bylo navrhnout algebraický
+programovací jazyk umožňující mj.&nbsp;zpracování seznamů, jenž by byl vhodný
+pro vývoj systémů umělé inteligence &ndash; <i>AI</i>. McCarthy navrhl, že by
+se fakta o okolním světě (která může AI při své činnosti použít) mohla
+reprezentovat formou vět ve vhodně strukturovaném formálním jazyce. Posléze se
+ukázalo, že je výhodné reprezentovat jednotlivé věty formou seznamů. McCarthy
+myšlenku jazyka vhodného pro AI rozpracoval dále &ndash; odklonil se například
+od infixové notace zápisu algebraických výrazů, protože naprogramování
+některých manipulací s&nbsp;těmito výrazy (derivace, integrace, zjednodušení
+výrazů, logická dedukce) bylo zbytečně složité.</p>
+
+<p><div class="rs-tip-major">Poznámka: McCarthy ve skutečnosti navrhl a popsal
+dva navzájem odlišné způsoby zápisu programů v&nbsp;LISPu. Jednalo se o
+takzvané <i>s-výrazy</i>, které používáme dodnes a potom o dnes již zapomenuté
+<i>m-výrazy</i>, v&nbsp;nichž se například používal &bdquo;lidštější&ldquo;
+zápis volání funkce (ovšem s&nbsp;využitím hranatých závorek) atd. Do dnešní
+doby ovšem přežily pouze s-výrazy, které dokážou velmi elegantním způsobem
+reprezentovat binární strom (jehož koncovými prvky jsou atomy) a navíc je u
+nich možné použít zjednodušený zápis seznamů.</div></p>
+
+<a href="http://i.iinfo.cz/images/455/lisp01.png"><img src="http://i.iinfo.cz/images/455/lisp01-prev.png" alt="lisp01" height="270" width="257" /></a>
+<p><i>Obrázek 1: Na tomto grafu evoluce programovacích jazyků můžeme vidět
+některé programovací jazyky, které jsme si již popsali v&nbsp;seriálu o vývoji
+počítačů a mikropočítačů.</i></p>
+
+<p>Následně McCarthy ve svých teoretických pracích (vznikajících v&nbsp;průběhu
+let 1957 a 1958) ukázal, že je možné pomocí několika poměrně jednoduchých
+operací (a notací pro zápis funkcí) vytvořit programovací jazyk, který je
+Turingovsky kompletní (tj.&nbsp;jeho výpočetní mocnost je ekvivalentní
+<i>Turingovu stroji</i>), ale zápis algoritmů v&nbsp;tomto jazyce je mnohem
+jednodušší než zápis pravidel pro Turingův stroj. Tento jazyk, jenž byl
+z&nbsp;velké části založen na <i>Lambda kalkulu</i>, obsahoval možnost
+vytváření rekurzivních funkcí (což byl významný rozdíl například oproti
+tehdejší verzi <i>FORTRANU</i>), funkce jako argumenty jiných funkcí, podmíněné
+výrazy (jedna z&nbsp;variant speciální formy), funkce pro manipulaci se seznamy
+a v&nbsp;neposlední řadě také funkci <i>eval</i>.</p>
+
+<p>Na McCarthovu teoretickou práci navázal <i>S. R. Russell</i>, který si
+uvědomil, že samotná funkce <i>eval</i>, pokud by byla implementována na
+nějakém počítači, může sloužit jako základ plnohodnotného interpretru jazyka
+<i>LISP</i> (interpretr LISPu se někdy též označuje zkratkou <i>REPL:
+Read-Eval-Print-Loop</i>, tj.&nbsp;interpretr ve smyčce načítá jednotlivé
+výrazy, vyhodnocuje je a následně tiskne jejich výslednou hodnotu). Russell
+skutečně celou smyčku <i>REPL</i> implementoval &ndash; tímto způsobem se
+zrodila první skutečně použitelná verze <i>LISPu</i>.</p>
+
+<p><div class="rs-tip-major">Poznámka: další vývoj LISPu už příliš nesouvisel
+s&nbsp;vývojem AI, mj.&nbsp;proto, že se ukázalo, že predikce, kdy vznikne
+skutečná AI, byly velmi optimistické (už nyní máme zpoždění 50 let). LISP se
+sice v&nbsp;této oblasti stále používal, ovšem jeho použití se rozšiřovalo do
+zcela odlišných směrů; dokonce i do tak obskurní oblasti, jakou nepochybně jsou
+textové editory :-)</div></p>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Rozdíly mezi různými dialekty programovacího jazyka LISP</h2>
+
+<p>V&nbsp;průběhu dalších více než pěti desetiletí dosti překotného rozvoje
+výpočetní techniky i programovacích jazyků vzniklo velmi mnoho dialektů tohoto
+programovacího jazyka, například <i>MacLISP</i>, <i>InterLISP</i>,
+<i>ZetaLISP</i>, <i>XLisp</i>, <i>AutoLISP</i> (původně odvozený
+z&nbsp;<i>XLispu</i>), samozřejmě <i>Emacs LISP</i> nebo slavný <i>Common
+LISP</i> (více viz odkazy na konci článku). Kromě těchto implementací jazyka
+LISP, které se od sebe v&nbsp;několika ohledech odlišují (například existencí
+či neexistencí maker či objektového systému), vznikl v&nbsp;minulosti i nový
+dialekt tohoto jazyka nazvaný <i>Scheme</i> (původně <i>Schemer</i>), jehož
+autory jsou Guy L. Steele a Gerald Jay Sussman (Steele později pracoval na
+specifikaci Javy i programovacího jazyka Fortress). Tento dialekt je
+implementačně jednodušší a také se ho lze naučit rychleji, než mnohé další
+varianty jazyka LISP.</p>
+
+<a href="https://www.root.cz/obrazek/337666/"><img src="https://i.iinfo.cz/images/196/emacs2-1-prev.png" class="image-337666" alt="&#160;" width="370" height="196" /></a>
+<p><i>Obrázek 2: Vývoj některých dialektů Lispu.<br />
+Zdroj: <a href="https://en.wikipedia.org/wiki/Lisp_%28programming_language%29">Wikipedia</a>.</i></p>
+
+<p>Právě z&nbsp;těchto důvodů se <i>Scheme</i> využívá či využívalo jak při
+výuce programování, tak i v&nbsp;mnoha open-source projektech, například
+v&nbsp;dnes popisovaném textovém editoru <i>Emacs</i> či v&nbsp;grafickém
+editoru <i>GIMP</i> jako jeden z&nbsp;podporovaných skriptovacích jazyků.
+Richard Stallman si dokonce přál, aby se <i>Scheme</i> stalo standardním
+skriptovacím jazykem většiny GNU aplikací, což je idea, která se &ndash;
+především po vzniku dalších vysokoúrovňových programovacích jazyků
+(<i>Perl</i>, <i>Python</i>, <i>TCL</i>) &ndash; nakonec neuskutečnila (i když
+vedla k&nbsp;tzv.&nbsp;<a href="https://vanderburg.org/old_pages/Tcl/war/">Tcl
+war</a>).</p
+
+<p><div class="rs-tip-major">Poznámka: Jazyk Scheme byl používán na MIT
+v&nbsp;úvodních kurzech programování. V&nbsp;roce 2009 byl nahrazen Pythonem,
+ovšem Scheme se dále používá, například v&nbsp;kurzu <a
+href="http://groups.csail.mit.edu/mac/users/gjs/6.945/">Adventures in Advanced
+Symbolic Programming</a> (podle některých studentů zdaleka nejzábavnější kurz,
+kterým prošli).</div></p>
+
+<p>Musíme si však uvědomit, že samotný LISP je nutné chápat jako spíše koncept,
+než konkrétní programovací jazyk. Proto můžeme pod pojmem LISP (psáno též Lisp)
+najít poměrně velké množství programovacích jazyků, které sice mají podobný
+základ, ovšem konkrétní implementace jsou značně rozdílné. Do rodiny
+LISPovských jazyků tak dnes patří i dosti odlišné <a
+href="https://www.root.cz/clanky/novinky-v-clojure-verze-1-9-0/#k19">Clojure</a>
+a výše zmíněné implementace jazyka Scheme. Dnes patří mezi nejpopulárnější
+implementace LISPovského jazyka především Common Lisp, dále pochopitelně Emacs
+Lisp, ovšem nesmíme zapomenout na již zmíněné Clojure a taktéž <a
+href="https://racket-lang.org/">Racket</a> neboli původním názvem PLT Scheme
+popř.&nbsp;na GNU Guile (implementace Scheme, která měla být původně určena
+jako základní rozšiřující jazyk v&nbsp;GNU projektu, viz zmínka o RMS).</p>
+
+<p><div class="rs-tip-major">Poznámka: uvádí se (ovšem bez hlubších měření), že
+Emacs Lisp je dnes ve světě open source pravděpodobně nejrozšířenější dialog
+Lispu s&nbsp;největší základnou programů a modulů.</div></p>
+
+<p>Velmi pěkně jsou základní společné vlastnosti a rozdíly mezi těmito jazyky
+shrnuty na stránce <a href="http://hyperpolyglot.org/lisp">Common Lisp, Racket,
+Clojure, Emacs Lisp</a>.</p>
+
+<img src="https://i.iinfo.cz/images/196/emacs2-2.jpg" class="image-337667" alt="&#160;" width="400" height="579" />
+<p><i>Obrázek 3: SICP &ndash; jedna z&nbsp;nejznámějších knížek (nejenom) o
+LISPovských jazycích.</i></p>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Je Emacs Lisp funkcionálním jazykem?</h2>
+
+<p>Někteří potenciální uživatelé Emacsu mohou mít z&nbsp;použití Emacs Lispu
+určité obavy, především z&nbsp;toho důvodu, že tento jazyk považují za čistě
+funkcionální. Pravděpodobně to souvisí s&nbsp;tím, že když je nějaký dialekt
+LISPu nebo Scheme vysvětlován na vysokých školách, skutečně je naprostá většina
+algoritmů řešena funkcionálně, tj.&nbsp;(velmi zjednodušeně řečeno) bez použití
+proměnných, procedur s&nbsp;vedlejšími efekty (používají se jen čisté funkce) a
+programových smyček (ty jsou nahrazeny rekurzí či tail rekurzí). Tento přístup
+samozřejmě nemusí být vůbec špatný, ale ve skutečnosti je Emacs Lisp společně
+například s&nbsp;AutoLISPem (i původním XLispem) příkladem dialektu LISPu,
+v&nbsp;němž je možné psát programy i strukturovaně. Jako příklad si můžeme
+uvést použití proměnných a funkcí s&nbsp;vedlejším efektem:</p>
+
+<pre>
+(setq i 10)
+&nbsp;
+(cl-loop repeat i do (print "Hello world!"))
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: samotná funkce <strong>cl-loop</strong>
+je, jak již její název napovídá, převzata z&nbsp;Common Lispu a nalezneme ji
+v&nbsp;knihovně <strong>cl-lib</strong>.</div></p>
+
+<p>Následuje programová smyčka a opět použití proměnné (dokonce globální
+proměnné):</p>
+
+<pre>
+(setq i 10)
+&nbsp;
+(while (&gt; i 0)
+  (print i)
+  (setq i (- i 1)))
+</pre>
+
+<p>Jednoduchá modifikace předchozího příkladu, v&nbsp;němž hodnota počitadla
+roste a používá se zde funkce nazvaná <strong>1+</strong> (v&nbsp;Lispu je
+možné pro názvy funkcí používat větší množství znaků, než v&nbsp;jiných
+jazycích, navíc můžete vidět, že i na začátku identifikátoru může být
+číslice):</p>
+
+<pre>
+(setq i 0)
+&nbsp;
+(while (&lt; i 10)
+  (print i)
+  (setq i (1+ i)))
+</pre>
+
+<p>Na druhou stranu nám samozřejmě nikdo nebrání použít funkci
+s&nbsp;rekurzí:</p>
+
+<pre>
+(defun factorial (n)
+  (if (&lt;= n 1)
+    1
+    (* n (factorial (- n 1)))))
+&nbsp;
+(print (factorial 10))
+</pre>
+
+<p>Nebo faktoriál naprogramovaný s&nbsp;využitím funkce vyššího řádu
+<strong>apply</strong>:</p>
+
+<pre>
+(defun factorial
+  (n)
+  (apply '* (number-sequence 1 n)))
+</pre>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Základní nastavení Emacsu při zkoušení možností Emacs LISPu</h2>
+
+<p><a href="http://imgs.xkcd.com/comics/lisp.jpg">Je Matrix napsaný v LISPu nebo Perlu?</a></p>
+
+<p>V&nbsp;této kapitole si ukážeme některé možnosti nastavení Emacsu ve chvíli,
+kdy si budeme chtít vyzkoušet základní schopnosti Emacs LISPu. První možnost
+spočívá v&nbsp;otevření (a následném pojmenování) nového bufferu. Ve druhém
+kroku tento buffer přepneme do režimu práce s&nbsp;LISPem. Při použití Evil
+režimu je to snadné, protože se pomocí dvojtečky přepneme do stavu zadávání
+příkazů:</p>
+
+<pre>
+:switch-to-buffer [jméno nového bufferu]
+:lisp-mode
+</pre>
+
+<p>Podobně budeme postupovat ve chvíli, kdy Evil režim není povolen. Bude se
+jen lišit klávesová zkratka, namísto dvojtečky se stiskne
+<strong>M-x</strong>:</p>
+
+<pre>
+M-x switch-to-buffer [jméno nového bufferu]
+M-x lisp-mode
+</pre>
+
+<p>Druhá možnost, kterou osobně při testování preferuji, je založena na použití
+bufferu <strong>*scratch*</strong>, který je automaticky otevřen při
+nastartování Emacsu a při jeho ukončení je ve výchozím nastavení jeho obsah
+zahozen.</p>
+
+<img src="https://i.iinfo.cz/images/325/evil1-15.png" class="image-337470" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 4: Použití scratch bufferu při zkoumání možností Emacs
+Lispu.</i></p>
+
+<p>V&nbsp;případě použití scratch bufferu je vhodné si poněkud změnit nastavení
+Emacsu (klidně přímo v&nbsp;tomto bufferu!). První vhodné nastavení:</p>
+
+<pre>
+(setq evil-move-beyond-eol t)
+</pre>
+
+<p>Při tomto nastavení je možné v&nbsp;normálním stavu přesunout textový kurzor
+ZA poslední znak na řádku. Toto nastavení velmi úzce souvisí s&nbsp;klávesovou
+zkratkou <strong>C-j</strong> sloužící k&nbsp;vyhodnocení tzv.&nbsp;LISPovské
+formy (výrazu) a vložení výsledku vyhodnocení přímo do bufferu na pozici
+kurzoru. Vhodnější je, aby se před vyhodnocením textový kurzor nejprve přesunul
+na konec řádku, protože v&nbsp;opačném případě by byl výsledek vložen přímo do
+definice formy/výrazu.</p>
+
+<p>Nové mapování klávesové zkratky <strong>C-j</strong> pro Evil režim může
+vypadat následovně (stále používám Evil mode):</p>
+
+<pre>
+(define-key evil-normal-state-map "\C-j"
+  (lambda ()
+    (interactive)
+    (move-end-of-line nil)
+    (eval-print-last-sexp)))
+</pre>
+
+<p>Nezapomeňte na další užitečné klávesové zkratky:</p>
+
+<table>
+<tr><th>Zkratka</th><th>Význam</th></tr>
+<tr><td>C-h f</td><td>zobrazí popis/dokumentaci vybrané funkce</td></tr>
+<tr><td>C-h v</td><td>zobrazí popis/dokumentaci vybrané proměnné</td></tr>
+<tr><td>C-M-i</td><td>doplnění jména identifikátoru nebo symbolu</td></tr>
+<tr><td>C-M-q</td><td>automatické zarovnání kódu</td></tr>
+</table>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Scratch buffer ve funkci REPLu</h2>
+
+<p>Pokud si chcete ze scratch bufferu udělat obdobu klasické interaktivní
+smyčky REPL (s&nbsp;historií a plnou možností editace všech dříve zadaných
+příkazů), můžete si namísto výše zmíněné klávesy <strong>C-j</strong>
+přemapovat přímo klávesu <strong>Enter</strong> (bez dalších modifikátorů)
+takovým způsobem, aby se při jejím stisku v&nbsp;normálním režimu kurzor
+posunul na konec řádku a následně se provedlo vyhodnocení výrazu, který je na
+řádku napsán. Od předchozího nastavení se následující definice odlišuje pouze
+zavoláním funkce <strong>kbd</strong>, které se předá název klávesy:</p>
+
+<pre>
+(define-key evil-normal-state-map (kbd "&lt;RET&gt;")
+  (lambda ()
+    (interactive)
+    (move-end-of-line nil)
+    (eval-print-last-sexp)))
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: přemapování klávesy
+<strong>Enter</strong> má pravděpodobně význam pouze při použití režimu
+<i>Evil</i>, v&nbsp;němž se rozlišuje mezi stavem zadávání příkazů a zápisem
+textu (zde by asi přemapování <strong>Enter</strong> moc uživatelům neprospělo,
+protože by se pro odřádkování musela použít jiná klávesa nebo odlišná klávesová
+zkratka).</div></p>
+
+<p>Nastavení je samozřejmě možné uložit do souboru <strong>.emacs</strong>
+umístěného v&nbsp;domovském adresáři uživatele. V&nbsp;mém případě vypadá
+zhruba následovně (neuvádím ovšem ty části, které nejsou z&nbsp;hlediska
+dnešního článku relevantní):</p>
+
+<pre>
+(setq evil-move-beyond-eol t)
+&nbsp;
+(require 'evil)
+(require 'evil-numbers)
+(evil-mode 1)
+&nbsp;
+(define-key evil-normal-state-map (kbd "C-a") 'evil-numbers/inc-at-pt)
+(define-key evil-normal-state-map (kbd "C-x") 'evil-numbers/dec-at-pt)
+&nbsp;
+(define-key evil-normal-state-map (kbd "&lt;RET&gt;")
+  (lambda ()
+    (interactive)
+    (move-end-of-line nil)
+    (eval-print-last-sexp)))
+</pre>
+
+<p>Otestování možností takto nastaveného REPLu je možné provést jednoduše
+&ndash; viz následující sekvence screenshotů:</p>
+
+<img src="https://i.iinfo.cz/images/196/emacs2-3.png" class="image-337668" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 5: Po spuštění Emacsu obsahuje scratch buffer pouze úvodní zprávy
+(ty začínají středníkem, takže se z&nbsp;hlediska jazyka LISP jedná o
+komentáře). Povšimněte si, že je zapnutý režim Lisp-Interaction.</i></p>
+
+<img src="https://i.iinfo.cz/images/196/emacs2-4.png" class="image-337669" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 6: Zápis takzvané LISPovské formy, přepnutí do normálního stavu
+(režim zadávání příkazů) klávesou <strong>Esc</strong>. Povšimněte si, že se
+kurzor nachází uprostřed formy a nikoli za jejím koncem.</i></p>
+
+<img src="https://i.iinfo.cz/images/196/emacs2-5.png" class="image-337670" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 7: Po stisku klávesy <strong>Enter</strong> se forma vyhodnotí a
+výsledek vyhodnocení se zapíše na následující řádek.</i></p>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Spouštění příkladů naprogramovaných v&nbsp;Elispu z&nbsp;příkazového řádku</h2>
+
+<p>Některé příklady, které si ukážeme v&nbsp;navazujících kapitolách, většinou
+obsahují pouze několik LISPovských forem, jejichž výsledná hodnota se (po
+vyhodnocení) vypisuje funkcí <a
+href="http://ergoemacs.org/emacs/elisp_printing.html">print</a>. Takové velmi
+jednoduché skripty, které vlastně žádným způsobem neinteragují s&nbsp;interními
+strukturami Emacsu (buffery, minibuffery, okna, kurzory, značky, výběry), je
+možné spustit v&nbsp;režimu interpretru. Emacs se v&nbsp;tomto případě spustí
+následujícím způsobem:</p>
+
+<pre>
+emacs --script priklad1.el
+</pre>
+
+<p>Po dokončení skriptu se Emacs automaticky ukončí (přičemž se ovšem vůbec
+nezobrazí jeho grafické či textové uživatelské rozhraní, takže se skutečně
+Emacs chová jako &bdquo;obyčejný&ldquo; interpret programovacího jazyka
+Elisp).</p>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Základní datové typy Elispu</h2>
+
+<p><div class="rs-tip-major">Poznámka: v&nbsp;dalším textu budeme většinou
+název &bdquo;Emacs Lisp&ldquo; zkracovat na pouhý &bdquo;Elisp&ldquo;. Taktéž
+v&nbsp;ukázkách zdrojového kódu bude uživatelem zadaná forma zapsána tučně a
+výsledek vyhodnocení této formy bude zapsán běžným písmem. Případné řádkové
+komentáře začínající středníkem budou psané kurzívou.</div></p>
+
+<p>Základními datovými typy, se kterými se pracuje v&nbsp;klasických (řekněme
+ortodoxních) dialektech programovacího jazyka <i>LISP</i>, jsou takzvané
+<i>atomy</i> a <i>seznamy</i>. Atomy jsou z&nbsp;hlediska tohoto programovacího
+jazyka základními objekty, které není možné dále dělit, ale je je možné ukládat
+do seznamů (většinou jsou atomy navíc neměnitelné &ndash; <i>immutable</i>).
+Atomy mohou být několika typů: jedná se především o <i>symboly</i> (například
+<strong>ABC</strong>), čísla (<strong>42</strong>, <strong>3.1415</strong> atd.
+&ndash; některé interpretry jazyka LISP rozlišují celá čísla, čísla reálná,
+čísla komplexní a někdy též zlomky, tj.&nbsp;čísla racionální), řetězce
+(<strong>"pokus"</strong>, <strong>"velmi dlouhý řetězec"</strong>), vestavěné
+funkce atd.</p>
+
+<p>V&nbsp;reálných programech se atomy ukládají do seznamů, přičemž pro
+označení začátku a konce seznamu se používají běžné kulaté závorky &ndash; levá
+závorka samozřejmě označuje začátek seznamu a pravá závorka jeho konec. Prvky
+neboli elementy seznamu jsou od sebe odděleny alespoň jednou mezerou nebo
+koncem řádku, což mj.&nbsp;znamená, že seznam může být rozepsán na více řádcích
+(to je velmi důležité ve chvíli, kdy se pomocí seznamů reprezentují funkce,
+které mohou být rozepsány na mnoho řádků).</p>
+
+<p>V&nbsp;Elispu je nabídka datových typů nepatrně rozšířena. Stále zde
+existuje rozlišení mezi atomy a ostatními (strukturovanými) typy. Mezi atomy
+patří zejména:</p>
+
+<ul>
+<li>Celá čísla (<i>integer</i>)</li>
+<li>Reálná čísla (<i>float</i>)</li>
+<li>Symboly (<i>symbol</i>), začínají apostrofem</li>
+<li>Řetězce (<i>string</i>), začínají a končí uvozovkami</li>
+</ul>
+
+<p><div class="rs-tip-major">Poznámka: pokud budete chtít použít i zlomky známé
+z&nbsp;jiných LISPů, použijte <a
+href="https://www.gnu.org/software/emacs/manual/html_mono/calc.html#Fractions">Fractions</a>.</div></p>
+
+<p>Všechny atomy se vyhodnocují samy na sebe (vyhodnocením je myšlen
+&bdquo;výpočet&ldquo; výsledné hodnoty). Můžeme si to velmi snadno vyzkoušet ve
+scratch bufferu (viz <a href="#k06">kapitolu číslo 6</a>):</p>
+
+<pre>
+<strong>42</strong>
+42
+&nbsp;
+<strong>1e10</strong>
+10000000000.0
+&nbsp;
+<strong>1e-3</strong>
+0.001
+&nbsp;
+<strong>3.14</strong>
+3.14
+&nbsp;
+<strong>'nějaký-symbol</strong>
+nějaký-symbol
+&nbsp;
+<strong>"řetězec"</strong>
+"řetězec"
+</pre>
+
+<p>Mezi strukturované typy, v&nbsp;nichž mohou být uloženy atomy či další
+strukturované typy (rekurzivně), řadíme například:</p>
+
+<ul>
+<li>Seznamy složené z&nbsp;tečka-dvojic (zde pojmenované <i>cons</i>, důvod bude vysvětlen v&nbsp;dalším textu)</li>
+<li>Vektory (<i>vector</i>)</li>
+<li>Hešovací tabulky (<i>hash-table</i>)</li>
+</ul>
+
+<p>Nesmíme ovšem zapomenout ani na další datové typy, především na funkce
+(<i>function</i>) a typy související s&nbsp;vlastním textovým editorem
+(<i>buffer</i>, <i>marker</i>, <i>frame</i> atd.). Základní práci
+s&nbsp;funkcemi si ukážeme dnes, ovšem datové typy, které úzce souvisí
+s&nbsp;&bdquo;enginem&ldquo; textového editoru Emacs budou popsány až
+v&nbsp;navazujícím článku.</p>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Prázdný seznam a rekurzivní datové struktury založené na seznamech</h2>
+
+<p>Zvláštním a v&nbsp;mnoha ohledech důležitým typem seznamu je <i>prázdný
+seznam</i>, který neobsahuje žádné prvky (elementy) a proto je zapisován buď
+levou závorkou, za níž ihned následuje závorka pravá (mezi závorkami se tedy
+nenachází žádný atom ani další seznam, mohou se zde nacházet pouze mezery nebo
+konce řádků), nebo lze pro jeho zápis alternativně použít symbol
+<strong>nil</strong>, který je ekvivalentní prázdnému seznamu (současně se
+tímto symbolem označuje logická hodnota nepravda, tj.&nbsp;prázdný seznam se
+v&nbsp;logických výrazech vyhodnocuje na hodnotu <i>false</i>).</p>
+
+<p>V&nbsp;Elispu je prázdný seznam zapisovaný stylem '() skutečně chápán jako
+symbol <strong>nil</strong>, o čemž se můžeme snadno přesvědčit:</p>
+
+<pre>
+<strong>(type-of nil)</strong>
+symbol
+&nbsp;
+<strong>(type-of '())</strong>
+symbol
+&nbsp;
+<strong>(type-of '(1))</strong>
+cons
+&nbsp;
+<strong>(type-of '(1 2 3))</strong>
+cons
+</pre>
+
+<p>Seznam může jako své prvky (elementy) obsahovat jak atomy, tak i další
+vnořené seznamy, což znamená, že se jedná o rekurzivní datovou strukturu,
+pomocí níž je možné popsat i mnohé další složitější datové struktury, například
+n-dimenzionální pole, stromy, hierarchické mřížky atd. Pod tímto odstavcem je
+uvedeno několik příkladů seznamů akceptovaných interpretrem jazyka Elisp.
+Povšimněte si především důsledného vyvážení pravých a levých závorek, především
+v&nbsp;případě, že seznam obsahuje jako své prvky/elementy další
+podseznamy:</p>
+
+<pre>
+<i>; komentáře jsou uvozené znakem středník, jak je to demonstrováno na tomto programovém řádku</i>
+&nbsp;
+<i>; prázdný seznam, viz předchozí text</i>
+<strong>()</strong>
+&nbsp;
+<i>; prázdný seznam - alternativní zápis pomocí symbolu nil</i>
+<strong>nil</strong>
+&nbsp;
+<i>; seznam obsahující čtyři atomy (konkrétně se jedná o trojici symbolů a jedno číslo)</i>
+<strong>(SEZNAM OBSAHUJICI 4 ATOMY)</strong>
+&nbsp;
+<i>; seznam obsahující trojici čísel</i>
+<strong>(42 3.14159 6502)</strong>
+&nbsp;
+<i>; dvouprvkový seznam obsahující dva podseznamy, z nichž každý obsahuje dva atomy</i>
+<strong>((A B) (C D))</strong>
+&nbsp;
+<i>; dvouprvkový seznam obsahující dva prázdné podseznamy</i>
+<strong>(() ())</strong>
+&nbsp;
+<i>; jednoprvkový seznam obsahující taktéž jednoprvkový podseznam obsahující prázdný podseznam :-)</i>
+<strong>((()))</strong>
+&nbsp;
+<i>; tříprvkový seznam obsahující jeden symbol a dvě čísla</i>
+<strong>(+ 1 2)</strong>
+&nbsp;
+<i>; tříprvkový seznam obsahující jeden symbol a dvojici podseznamů</i>
+<strong>(* (+ 1 2) (- 1 2))</strong>
+</pre>
+
+<p>Poslední dva seznamy mají v&nbsp;Elispu zvláštní význam, protože jejich
+první element představuje symbol reprezentující primitivní (základní) funkci.
+Programovací jazyk <i>LISP</i> by tento seznam zpracoval tak, že by funkci
+zavolal s&nbsp;tím, že jí jako parametry předá všechny další prvky seznamu
+(případné podseznamy se nejdříve rekurzivně vyhodnotí naprosto stejným způsobem
+&ndash; ostatně toto vyhodnocování je základ celého REPLu).</p>
+
+<p><div class="rs-tip-major">Poznámka: vzhledem k&nbsp;tomu, že první prvek
+seznamu je při jeho vyhodnocování chápán jako název funkce, budete muset při
+testech v&nbsp;REPLu v&nbsp;prvních příkladech před seznam přidat znak ', což
+je zkratka takzvané speciální formy <strong>quote</strong>. Pojmem speciální
+forma se v&nbsp;Lispech označuje zápis, který se vyhodnocuje odlišně, než běžné
+funkce. Příkladem může být speciální forma <strong>if</strong> zmíněná
+dále.</div></p>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Tečka-dvojice: základ pro tvorbu složitějších datových struktur</h2>
+
+<p><div class="rs-tip-major">Poznámka: tečka dvojice jsou podporovány
+v&nbsp;naprosté většině dialektů LISPu. Jednou z&nbsp;mála výjimek je
+programovací jazyk <i>Clojure</i>, protože v&nbsp;tomto jazyku jsou seznamy
+reprezentovány odlišným způsobem a nemá tedy větší význam se snažit předstírat,
+že se jedná o pouhé lineárně vázané seznamy.</div></p>
+
+<p>V&nbsp;<a href="#k08">předchozí kapitole</a> jsme si řekli, že programovací
+jazyk <i>LISP</i> je založen na zpracování seznamů. Jak jsou však seznamy
+uloženy v&nbsp;operační paměti počítače a jak s&nbsp;nimi interpretry tohoto
+jazyka pracují? Základní interní strukturou, která je však přímo dostupná i
+programátorům aplikací v&nbsp;jazyce <i>LISP</i>, je takzvaná
+<i>tečka-dvojice</i> (dotted-pair). Tuto strukturu si můžeme představit jako
+dvojici ukazatelů, přičemž každý z&nbsp;těchto ukazatelů může obsahovat adresu
+atomu, adresu další tečka-dvojice nebo speciální hodnotu <strong>nil</strong>
+odpovídající v&nbsp;céčku hodnotě <strong>NULL</strong> či v&nbsp;Javě hodnotě
+<strong>null</strong>, tj.&nbsp;jedná se o speciální hodnotu, která interpretru
+říká, že daný ukazatel neobsahuje žádný odkaz.</p>
+
+<p>Tečka-dvojici lze v&nbsp;LISPovských programech zapisovat formou dvojice
+výrazů (takzvaných S-výrazů zmíněných v&nbsp;úvodních kapitolách) oddělených
+tečkou, které jsou uzavřeny do kulatých závorek (i když je pravda, že se
+s&nbsp;tečka-dvojicemi v&nbsp;reálných programech příliš často nesetkáme,
+především z&nbsp;důvodu nepřehledného zápisu s&nbsp;velkým množstvím
+závorek):</p>
+
+<pre>
+(1.2)
+(1.nil)
+(A.(B.C))
+(A.(B.nil))
+((A.B).C)
+((A.B).(C.D))
+(ABC.DEF)
+((ABC.(DEF.UVW)).XYZ)
+</pre>
+
+<p>Pro přístup k&nbsp;informaci (atomu či další tečka dvojici), na kterou
+odkazuje první ukazatel tečka dvojice, se používá primitivní funkce
+<strong>car</strong>, a pro přístup k&nbsp;informaci, na níž se odkazuje druhý
+ukazatel, lze použít funkci <strong>cdr</strong> (pozor na to, že Elisp
+rozlišuje mezi malými a velkými písmeny, na rozdíl od některých dalších
+dialektů LISPu).</p>
+
+<p>Pomocí tečka-dvojic je možné vytvořit klasický seznam následujícím způsobem:
+první ukazatel každé n-té tečka-dvojice odkazuje na n-tý prvek seznamu
+(například atom), druhý ukazatel se odkazuje na další (n plus první)
+tečka-dvojici. Speciálním případem je poslední tečka-dvojice, jejíž druhý
+ukazatel obsahuje výše uvedenou speciální hodnotu <strong>nil</strong>.
+Z&nbsp;následujícího příkladu (obsahujícího ekvivalentní datové struktury) je
+patrné, že použití syntaxe pro zápis seznamů je přehlednější a současně i
+mnohem kratší, než explicitní zápis tečka-dvojic; ovšem právě znalost vnitřní
+reprezentace seznamů pomocí tečka-dvojic nám umožňuje pochopit, jak pracují
+některé základní funkce, včetně již zmíněných funkcí <strong>car</strong> a
+<strong>cdr</strong>:</p>
+
+<pre>
+<i>; seznam zapsaný pomocí tečka-dvojic</i>
+<strong>(1.(2.(3.(4.(5.nil)))))</strong>
+&nbsp;
+<i>; běžný způsob zápisu seznamu</i>
+<strong>(1 2 3 4 5)</strong>
+</pre>
+
+<pre>
+; interní struktura seznamu v paměti
+;         .
+;        / \
+;       1   .
+;          / \
+;         2   .
+;            / \
+;           3   .
+;              / \
+;             4   .
+;                / \
+;               5   nil
+</pre>
+
+<p>Poznamenejme, že další struktury vytvořené pomocí rekurzivně zanořených
+tečka-dvojic není možné převést na běžné seznamy. Například jednoduchý binární
+strom se třemi úrovněmi a čtyřmi listy lze reprezentovat buď pomocí
+tečka-dvojic (v&nbsp;paměti se vytvoří skutečná obdoba binárního stromu),
+popř.&nbsp;je možné tuto datovou strukturu &bdquo;simulovat&ldquo; pomocí
+seznamů (ovšem v&nbsp;tomto případě bude paměťová náročnost nepatrně vyšší
+kvůli nutnosti ukončení všech podseznamů tečka dvojicí obsahující ve svém
+druhém ukazateli hodnotu <strong>nil</strong>):</p>
+
+<pre>
+<i>; binární strom se třemi úrovněmi a čtyřmi listy vytvořený pomocí tečka dvojic</i>
+<strong>((A.B).(C.D))</strong>
+; interní podoba této struktury v operační paměti:
+;     .
+;    / \
+;   .   .
+;  / \ / \
+;  A B C D
+&nbsp;
+<i>; binární strom vytvořený pomocí LISPovských seznamů</i>
+<strong>((A B) (C D))</strong>
+; interní podoba této struktury v operační paměti:
+;         .
+;        / \
+;       /   \
+;      /     \
+;     /       \
+;    .         .
+;   / \       / \
+;   A  .     .  nil
+;     / \   / \
+;     B nil C  .
+;             / \
+;             D nil
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: Pokud si budete chtít podobné složitější
+datové struktury zobrazit vizuálně, můžete využít například projekt <a
+href="https://github.com/cuichaox/visual-cells">Visual Cells</a>.</div></p>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Základní funkce pro konstrukci seznamů a pro přístup k&nbsp;prvkům seznamů</h2>
+
+<p>Jednou ze základních funkcí, která se objevila už v&nbsp;původním návrhu
+LISPu, je funkce nazvaná <strong>cons</strong>. Této funkci se předají dvě
+hodnoty (atomy či strukturované hodnoty) a výsledkem bude tečka dvojice:</p>
+
+<pre>
+<strong>(print (cons 1 2))</strong>
+(1 . 2)
+&nbsp;
+<strong>(print (cons 1 (cons 2 3)))</strong>
+(1 2 . 3)
+&nbsp;
+<strong>(print '((1 . 2) . (3 . 4)))</strong>
+((1 . 2) 3 . 4)
+</pre>
+
+<p>Vhodnou volbou argumentů funkce <strong>cons</strong> lze vytvořit seznam
+(viz <a href="#k10">předchozí kapitolu</a>):</p>
+
+<pre>
+<i>; this is proper list</i>
+<strong>(print (cons 1 (cons 2 (cons 3 nil))))</strong>
+(1 2 3)
+&nbsp;
+<i>; this is proper list</i>
+<strong>(print (cons 1 (cons 2 (cons 3 ()))))</strong>
+(1 2 3)
+</pre>
+
+<p>Výše dva uvedené příklady sice skutečně vedou k&nbsp;vytvoření seznamu,
+ovšem jejich zápis je velmi dlouhý a zbytečně pracný. Seznamy lze zkonstruovat
+i jinak, a to konkrétně funkcí <strong>list</strong>, která všechny své
+parametry (libovolný počet) vloží do nového seznamu:</p>
+
+<pre>
+<strong>(print (list 1 2 3 4))</strong>
+(1 2 3 4)
+</pre>
+
+<p>Seznam můžeme přiřadit k&nbsp;proměnné, například k&nbsp;proměnné
+<strong>a</strong>:</p>
+
+<pre>
+<i>; create list and assign it to symbol</i>
+<i>; (=variable)</i>
+(setq a '(1 2 3 4))
+</pre>
+
+<p>Dále máme k&nbsp;dispozici funkce <strong>car</strong> a
+<strong>cdr</strong> vracející první prvek resp.&nbsp;všechny prvky kromě
+prvního. Existují i další variace, například funkce <strong>cadr</strong>
+odpovídající <strong>(car (cdr ...))</strong> či <strong>cddr</strong>
+odpovídající <strong>(cdr (cdr ...))</strong>:</p>
+
+<pre>
+<i>; get the first item</i>
+<strong>(print (car a))</strong>
+1
+&nbsp;
+<i>; get the rest of a list</i>
+<strong>(print (cdr a))</strong>
+(2 3 4)
+&nbsp;
+<i>; combination of car+cdr</i>
+<strong>(print (cadr a))</strong>
+2
+&nbsp;
+<i>; combination of cdr+cdr</i>
+<strong>(print (cddr a))</strong>
+(3 4)
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Definice vlastních funkcí</h2>
+
+<p>Podobně jako u každého dialektu programovacího jazyka LISP, i v&nbsp;případě
+<i>Elispu</i> se program skládá především z&nbsp;funkcí. Ty mohou být anonymní
+(nepojmenované) či naopak pojmenované. Nejprve se zabývejme pojmenovanými
+funkcemi, protože ty se chovají prakticky stejně, jako běžné funkce
+v&nbsp;jiných programovacích jazycích. Pojmenované funkce se definují pomocí
+<strong>defun</strong> (zkratka od &bdquo;define function&ldquo;), za nímž
+následuje jméno funkce. Každá funkce může mít libovolný počet parametrů,
+jejichž jména se uvádí v&nbsp;seznamu za pojmenováním funkce. Poslední částí
+formy <strong>defun</strong> je tělo funkce, přičemž po zavolání funkce se
+vyhodnocená forma vrátí jako její výsledek (nikde se tedy nezapisuje slovo
+&bdquo;return&ldquo; ani nic podobného):</p>
+
+<pre>
+<i>; one-liner function</i>
+(defun add (x y) (+ x y))
+</pre>
+
+<p>Přehlednější je však zápis definice funkce na více řádků. První řádek
+obsahuje jméno, druhý pojmenované parametry, další řádky pak tělo funkce:</p>
+
+<pre>
+<i>; function written on more lines</i>
+(defun mul
+  (x y)
+  (* x y))
+&nbsp;
+<i>; function written on more lines</i>
+(defun div
+  (x y)
+  (/ x y))
+</pre>
+
+<p>Zavolání funkce je jednoduché &ndash; používá se stále ten samý formát
+seznamu, na jehož prvním místě je jméno funkce a za ním následují
+parametry:</p>
+
+<pre>
+<i>; test functions</i>
+(print (add 1 2))
+(print (mul 6 7))
+(print (div 10 3))
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Funkce s&nbsp;nepovinnými parametry</h2>
+
+<p>V&nbsp;Elispu se můžeme setkat s&nbsp;velkým množstvím funkcí, které mají
+nepovinné parametry. Tyto parametry jsou od parametrů povinných odděleny pomocí
+klauzule <strong>&amp;optional</strong>. Příkladem může být funkce pro součet
+dvou nebo tří číselných hodnot (samozřejmě se jedná o dosti umělý příklad):</p>
+
+<pre>
+(defun add3
+  (x y &amp;optional z)
+  (if z
+    (+ x y z)
+    (+ x y)))
+</pre>
+
+<p>Funkci si můžeme vyzkoušet:</p>
+
+<pre>
+<strong>(add3 1 2 3)</strong>
+6
+&nbsp;
+<strong>(add3 1 2)</strong>
+3
+&nbsp;
+<strong>(add3 1)</strong>
+Wrong number of arguments: (lambda (x y &amp;optional z) (if z (+ x y z) (+ x y))), 1
+</pre>
+
+<p>V&nbsp;posledním příkladu je ukázáno, že první dva parametry jsou skutečně
+povinné.</p>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Funkce vyššího řádu</h2>
+
+<p>Funkce jsou plnoprávnými datovými typy, takže je lze přiřadit do proměnné
+atd. V&nbsp;Elispu pouze nastává jeden problém, protože interně jsou ke každému
+symbolu (například ke jménu funkce) přiřazeny čtyři komponenty (nazývané
+<i>cells</i>):</p>
+
+<ol>
+<li>Jméno symbolu tak, jak je zobrazeno uživateli</li>
+<li>Hodnota (pokud se symbol používá jako proměnná)</li>
+<li>Funkce</li>
+<li>Seznam vlastností (property list) popsaný příště</li>
+</ol>
+
+<p>Proto je nutné rozlišovat mezi hodnotou a funkcí. Jsou možné dvě řešení:</p>
+
+<pre>
+(defun add (x y) (+ x y))
+&nbsp;
+(setq soucet 'add)
+&nbsp;
+(funcall soucet 10 20)
+</pre>
+
+<p>Druhé řešení pracuje přímo s&nbsp;funkcí, ovšem namísto
+<strong>setq</strong> používá <strong>fset</strong>:</p>
+
+<pre>
+(fset 'soucet2 'add)
+&nbsp;
+(soucet2 100 200)
+</pre>
+
+<p>Toto je hlavní rozdíl mezi Elispem a mnoha ostatními dialekty Lispu a bude
+vám možná zpočátku způsobovat problémy.</p>
+
+<p><i>Elisp</i> sice není, na rozdíl od Haskellu a částečně i Clojure, čistě
+funkcionální jazyk, nicméně i zde hrají při vývoji aplikací velkou roli funkce
+vyššího řádu, tj.&nbsp;funkce, které jako své parametry akceptují jiné funkce
+popř.&nbsp;dokonce vrací (nové) funkce jako svoji návratovou hodnotu. Mezi dvě
+základní funkce vyššího řádu, které nalezneme prakticky ve všech dialektech
+programovacího jazyka Lisp, patří funkce nazvané <strong>mapcar</strong> a
+taktéž <strong>apply</strong>. Funkce <strong>mapcar</strong> jako svůj první
+parametr akceptuje jinou funkci (s&nbsp;jedním parametrem) a druhým parametrem
+musí být seznam. <strong>mapcar</strong> postupně aplikuje předanou funkci na
+jednotlivé prvky seznamu a vytváří tak seznam nový (modifikovaný). Podívejme se
+na jednoduchý příklad &ndash; aplikace funkce pro zvýšení hodnoty o jedničku na
+seznam:</p>
+
+<pre>
+; regular function
+(defun inc
+  (x)
+  (+ x 1)) 
+&nbsp;
+<i>; use inc in higher order function</i>
+<strong>(print (mapcar 'inc '(1 2 3)))</strong>
+(2 3 4)
+</pre>
+
+<p>Funkce <strong>apply</strong> se chová poněkud odlišně &ndash; aplikuje
+totiž nějakou funkci (svůj první parametr) na předaný seznam. Typický
+&bdquo;školní&ldquo; příklad s&nbsp;binární funkcí + (tj.&nbsp;funkcí se dvěma
+parametry) může vypadat následovně:</p>
+
+<pre>
+<i>; use + in higher order function</i>
+<strong>(print (apply '+ '(1 2 3 4)))</strong>
+10
+</pre>
+
+<p>Podobně je tomu například u funkce *:</p>
+
+<pre>
+<i>; use * in higher order function</i>
+<strong>(print (apply '* (number-sequence 1 6)))</strong>
+720
+</pre>
+
+<p>Poslední zajímavou funkcí je <strong>cl-reduce</strong>, která postupně
+zpracovává prvky předaného seznamu a pomocí akumulátoru tvoří výslednou
+hodnotu:</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(defun add
+  (x y)
+  (+ x y))
+&nbsp;
+; use add in higher order function reduce
+(print (cl-reduce 'add '(1 2 3 4)))
+&nbsp;
+</pre>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Anonymní funkce</h2>
+
+<p>Kromě pojmenovaných funkcí, které jsme si již představili v&nbsp;předchozích
+kapitolách, je možné v&nbsp;<i>Elispu</i> použít i funkce anonymní,
+tj.&nbsp;funkce, které nejsou navázány na žádné jméno. Pro tento účel se
+používá lambda výraz, podobně jako v&nbsp;každém ortodoxním Lispu (kromě
+PicoLispu). Podívejme se na typický příklad &ndash; budeme chtít ze vstupního
+seznamu vytvořit výstupní seznam s&nbsp;hodnotami o jedničku zvýšenými. Pro
+něco tak jednoduchého asi nemá smysl si vytvářet novou pojmenovanou funkci, ale
+použijeme přímo funkci anonymní:</p>
+
+<pre>
+<i>; anonymous function used in higher order function</i>
+<strong>(print (mapcar (lambda (x) (+ x 1) ) '(1 2 3 4)))</strong>
+10
+</pre>
+
+<p>Zajímá vás řada n<sup>2</sup>?:</p>
+
+<pre>
+<i>; anonymous function used in higher order function</i>
+<strong>(print (mapcar (lambda (x) (* x x)) (number-sequence 1 10)) )</strong>
+(1 4 9 16 25 36 49 64 81 100)
+</pre>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Výpočet faktoriálu realizovaný funkcí vyššího řádu</h2>
+
+<p>Funkce vyššího řádu lze použít i pro přepis výpočtu faktoriálu. Ten lze
+přepsat s&nbsp;využitím funkce <strong>apply</strong> a taktéž generátoru
+sekvence čísel <strong>number-sequence</strong> (ten zhruba odpovídá
+Pythonovskému <strong>range</strong>, ovšem generuje se i poslední mezní
+hodnota):</p>
+
+<pre>
+; higher order function in other (regular) function
+(defun factorial
+  (n)
+  (apply '* (number-sequence 1 n)))
+</pre>
+
+<p>Otestování je snadné:</p>
+
+<pre>
+(print (factorial 10))
+</pre>
+
+<p>Samozřejmě si můžeme vypsat sekvenci faktoriálu pro vstupní hodnoty n=1, n=2
+atd.:</p>
+
+<pre>
+<i>; anonymous function used in higher order function</i>
+<strong>(print (mapcar 'factorial (number-sequence 0 10)))</strong>
+(1 1 2 6 24 120 720 5040 40320 362880 3628800)
+</pre>
+
+<p>Nebo celý výpočet napsat na jediný řádek s&nbsp;využitím dvou funkcí vyššího
+řádu a jedné anonymní funkce:</p>
+
+<pre>
+<i>; anonymous function used in higher order function</i>
+<strong>(print (mapcar (lambda (n) (apply '* (number-sequence 1 n) )) (number-sequence 1 10)) )</strong>
+(1 2 6 24 120 720 5040 40320 362880 3628800)
+</pre>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Zdrojové kódy většiny dnes popsaných demonstračních příkladů byly uloženy do
+Git repositáře dostupného na adrese <a
+href="https://github.com/tisnik/elisp-examples">https://github.com/tisnik/elisp-examples</a>
+(stále na GitHubu :-). V&nbsp;případě, že nebudete chtít klonovat celý
+repositář (ten je ovšem stále velmi malý, dnes má doslova několik kilobajtů),
+můžete namísto toho použít odkazy na jednotlivé příklady, které naleznete
+v&nbsp;následující tabulce:</p>
+
+<table>
+<tr><th> #</th><th>Demonstrační příklad</th><th>Popis</th><th>Cesta</th></tr>
+<tr><td> 1</td><td>01_hello_world.el</td><td>nejprimitivnější příklad &ndash; &bdquo;hello world&ldquo;</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/01_hello_world.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/01_hello_world.el</a></td></tr>
+<tr><td> 2</td><td>02_cl-loop.el</td><td>programová smyčka převzatá z&nbsp;Common Lispu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/02_cl-loop.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/02_cl-loop.el</a></td></tr>
+<tr><td> 3</td><td>03_while_loop_A.el</td><td>programová smyčka while</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/03_while_loop_A.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/03_while_loop_A.el</a></td></tr>
+<tr><td> 4</td><td>04_while_loop_B.el</td><td>programová smyčka while</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/04_while_loop_B.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/04_while_loop_B.el</a></td></tr>
+<tr><td> 5</td><td>05_factorial.el</td><td>rekurzivní výpočet faktoriálu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/05_factorial.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/05_factorial.el</a></td></tr>
+<tr><td> 6</td><td>06_map_C-j.el</td><td>mapování klávesy C-j</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/06_map_C-j.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/06_map_C-j.el</a></td></tr>
+<tr><td> 7</td><td>07_map_RET.el</td><td>mapování klávesy Return/Enter</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/07_map_RET.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/07_map_RET.el</a></td></tr>
+<tr><td> 8</td><td>08_dot_pairs.el</td><td>tečka-dvojice</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/08_dot_pairs.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/08_dot_pairs.el</a></td></tr>
+<tr><td> 9</td><td>09_cons.el</td><td>konstrukce tečka-dvojic</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/09_cons.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/09_cons.el</a></td></tr>
+<tr><td>10</td><td>10_lists.el</td><td>práce se seznamy</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/10_lists.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/10_lists.el</a></td></tr>
+<tr><td>11</td><td>11_functions.el</td><td>definice vlastních funkcí</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/11_functions.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/11_functions.el</a></td></tr>
+<tr><td>12</td><td>12_higher_order_functions.el</td><td>ukázka funkcí vyššího řádu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/12_higher_order_functions.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/12_higher_order_functions.el</a></td></tr>
+<tr><td>13</td><td>13_anonymous_functions.el</td><td>anonymní funkce (lambda)</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/13_anonymous_functions.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/13_anonymous_functions.el</a></td></tr>
+<tr><td>14</td><td>14_factorial_B.el</td><td>přímý výpočet faktoriálu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/14_factorial_B.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/14_factorial_B.el</a></td></tr>
+<tr><td>15</td><td>15_factorial_C.el</td><td>funkce pro výpočet faktoriálu založená na funkcích vyššího řádu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-1/15_factorial_C.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-1/15_factorial_C.el</a></td></tr>
+</table>
+
+<p>Všechny příklady se mohou spouštět z&nbsp;příkazové řádky následujícím
+způsobem:</p>
+
+<pre>
+emacs --script priklad1.el
+</pre>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Guile Emacs</h2>
+
+<p>Pro zajímavost se v&nbsp;dnešním článku musíme zmínit o projektu nazvaném
+<i>Guile Emacs</i>. Název tohoto projektu může být poněkud matoucí, protože se
+ve skutečnosti <i>nejedná</i> o snahu nahradit Emacs Lisp jazykem Scheme
+(resp.&nbsp;jeho konkrétní implementací pojmenovanou GNU Guile), ale o
+zajištění, aby byly zdrojové kódy napsané v&nbsp;Elispu překládány stejným
+způsobem (podobným překladačem), jako je tomu v&nbsp;případě Guile. Výsledkem
+by měl být rychlejší běh jak samotného Emacsu, tak i jeho modulů, což může být
+zajímavé pro rozsáhlejší moduly typu <i>org-mode</i>, webového prohlížeče atd.
+Navíc se díky použití překladače Guile otevírá možnost rozšíření možností
+samotného Elispu o vlastnosti podporované v&nbsp;Guile. Dále by mělo být možné
+psát moduly buď v&nbsp;Elispu nebo přímo v&nbsp;Guile (které je sice taktéž
+založeno na LISPovském dialektu, ale jedná se o matematicky čistější
+implementaci, což některým programátorům může vyhovovat). Bližší informace o
+tomto projektu je možné nalézt na <a
+href="https://www.emacswiki.org/emacs/SiteMap">EmacsWiki</a>, konkrétně na
+stránce <a
+href="https://www.emacswiki.org/emacs/GuileEmacs">https://www.emacswiki.org/emacs/GuileEmacs</a>.</p>
+
+<p><div class="rs-tip-major">Poznámka: Guile znamená &bdquo;GNU Ubiquitous
+Intelligent Language for Extensions&ldquo;, takže plné jméno &bdquo;GNU
+Guile&ldquo; vlastně obsahuje &bdquo;GNU&ldquo; hned dvakrát. Navíc je GNU
+rekurzivní zkratka znamenající &bdquo;GNU's Not Unix!&ldquo;, takže je zde
+poněkud přepakoňováno.</div></p>
+
+
+
+<p><a name="k19"></a></p>
+<h2 id="k19">19. Literatura</h2>
+
+<ol>
+
+<li>McCarthy<br />
+<i>&bdquo;Recursive functions of symbolic expressions and their computation by machine, part I&ldquo;</i><br />
+1960
+</li>
+
+<li>Guy L. Steele<br />
+<i>&bdquo;History of Scheme&ldquo;</i><br />
+2006, Sun Microsystems Laboratories
+</li>
+
+<li>
+Kolář J., Muller K.:<br />
+<i>&bdquo;Speciální programovací jazyky&ldquo;</i><br />
+Praha 1981
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 9, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., October 1987
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 10, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., September 1988
+</li>
+
+<li>McCarthy, John; Abrahams, Paul W.; Edwards, Daniel J.; Hart, Timothy P.; Levin, Michael I.<br />
+<i>&bdquo;LISP 1.5 Programmer's Manual&ldquo;</i><br />
+MIT Press. ISBN 0 262 130 1 1 4
+</li>
+
+<li>Carl Hewitt; Peter Bishop and Richard Steiger<br />
+<i>&bdquo;A Universal Modular Actor Formalism for Artificial Intelligence&ldquo;</i><br />
+1973
+</li>
+
+<li>Feiman, J.<br />
+<i>&bdquo;The Gartner Programming Language Survey (October 2001)&ldquo;</i><br />
+Gartner Advisory
+</li>
+
+<li>Harold Abelson, Gerald Jay Sussman, Julie Sussman:<br />
+<i>Structure and Interpretation of Computer Programs</i><br />
+MIT Press. 1985, 1996 (a možná vyšel i další přetisk)
+</li>
+
+<li>Paul Graham:<br />
+<i>On Lisp</i><br />
+Prentice Hall, 1993<br />
+Dostupné online na stránce <a href="http://www.paulgraham.com/onlisptext.html">http://www.paulgraham.com/onlisptext.html</a>
+</li>
+
+</ol>
+
+
+
+<p><a name="k20"></a></p>
+<h2 id="k20">20. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>Evil (Emacs Wiki)<br />
+<a href="https://www.emacswiki.org/emacs/Evil">https://www.emacswiki.org/emacs/Evil</a>
+</li>
+
+<li>Evil (na GitHubu)<br />
+<a href="https://github.com/emacs-evil/evil">https://github.com/emacs-evil/evil</a>
+</li>
+
+<li>Evil (na stránkách repositáře MELPA)<br />
+<a href="https://melpa.org/#/evil">https://melpa.org/#/evil</a>
+</li>
+
+<li>Evil Mode: How I Switched From VIM to Emacs<br />
+<a href="https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html">https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html</a>
+</li>
+
+<li>GNU Emacs (home page)<br />
+<a href="https://www.gnu.org/software/emacs/">https://www.gnu.org/software/emacs/</a>
+</li>
+
+<li>GNU Emacs (texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs">http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs</a>
+</li>
+
+<li>An Introduction To Using GDB Under Emacs<br />
+<a href="http://tedlab.mit.edu/~dr/gdbintro.html">http://tedlab.mit.edu/~dr/gdbintro.html</a>
+</li>
+
+<li>An Introduction to Programming in Emacs Lisp<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html</a>
+</li>
+
+<li>27.6 Running Debuggers Under Emacs<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html">https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html</a>
+</li>
+
+<li>GdbMode<br />
+<a href="http://www.emacswiki.org/emacs/GdbMode">http://www.emacswiki.org/emacs/GdbMode</a>
+</li>
+
+<li>Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Emacs">https://en.wikipedia.org/wiki/Emacs</a>
+</li>
+
+<li>Emacs timeline<br />
+<a href="http://www.jwz.org/doc/emacs-timeline.html">http://www.jwz.org/doc/emacs-timeline.html</a>
+</li>
+
+<li>Emacs Text Editors Family<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily">http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse (část 2: vyhledávání a nahrazování textu)<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/</a>
+</li>
+
+<li>Emacs/Evil-mode - A basic reference to using evil mode in Emacs<br />
+<a href="http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet">http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet</a>
+</li>
+
+<li>From Vim to Emacs+Evil chaotic migration guide<br />
+<a href="https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/">https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/</a>
+</li>
+
+<li>Introduction to evil-mode {video)<br />
+<a href="https://www.youtube.com/watch?v=PeVQwYUxYEg">https://www.youtube.com/watch?v=PeVQwYUxYEg</a>
+</li>
+
+<li>EINE (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/EINE">http://www.emacswiki.org/emacs/EINE</a>
+</li>
+
+<li>EINE (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EINE">http://texteditors.org/cgi-bin/wiki.pl?EINE</a>
+</li>
+
+<li>ZWEI (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/ZWEI">http://www.emacswiki.org/emacs/ZWEI</a>
+</li>
+
+<li>ZWEI (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?ZWEI">http://texteditors.org/cgi-bin/wiki.pl?ZWEI</a>
+</li>
+
+<li>Zmacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Zmacs">https://en.wikipedia.org/wiki/Zmacs</a>
+</li>
+
+<li>Zmacs (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?Zmacs">http://texteditors.org/cgi-bin/wiki.pl?Zmacs</a>
+</li>
+
+<li>TecoEmacs (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/TecoEmacs">http://www.emacswiki.org/emacs/TecoEmacs</a>
+</li>
+
+<li>Micro Emacs<br />
+<a href="http://www.emacswiki.org/emacs/MicroEmacs">http://www.emacswiki.org/emacs/MicroEmacs</a>
+</li>
+
+<li>Micro Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/MicroEMACS">https://en.wikipedia.org/wiki/MicroEMACS</a>
+</li>
+
+<li>EmacsHistory<br />
+<a href="http://www.emacswiki.org/emacs/EmacsHistory">http://www.emacswiki.org/emacs/EmacsHistory</a>
+</li>
+
+<li>Seznam editorů s ovládáním podobným Emacsu či kompatibilních s příkazy Emacsu<br />
+<a href="http://www.finseth.com/emacs.html">http://www.finseth.com/emacs.html</a>
+</li>
+
+<li>evil-numbers<br />
+<a href="https://github.com/cofi/evil-numbers">https://github.com/cofi/evil-numbers</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (1.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (2.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (3): Nemiver<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (4): KDbg<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (5): ladění aplikací v editorech Emacs a Vim<br />
+<a href="https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/">https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/</a>
+</li>
+
+<li>Org mode<br />
+<a href="https://orgmode.org/">https://orgmode.org/</a>
+</li>
+
+<li>The Org Manual<br />
+<a href="https://orgmode.org/manual/index.html">https://orgmode.org/manual/index.html</a>
+</li>
+
+<li>Kakoune (modální textový editor)<br />
+<a href="http://kakoune.org/">http://kakoune.org/</a>
+</li>
+
+<li>Vim-style keybinding in Emacs/Evil-mode<br />
+<a href="https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8">https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8</a>
+</li>
+
+<li>Emacs - jak začít<br />
+<a href="http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit">http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit</a>
+</li>
+
+<li>Programovací jazyk LISP a LISP machines<br />
+<a href="https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/">https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/</a>
+</li>
+
+<li>Evil-surround<br />
+<a href="https://github.com/emacs-evil/evil-surround">https://github.com/emacs-evil/evil-surround</a>
+</li>
+
+<li>Spacemacs<br />
+<a href="http://spacemacs.org/">http://spacemacs.org/</a>
+</li>
+
+<li>Lisp: Common Lisp, Racket, Clojure, Emacs Lisp<br />
+<a href="http://hyperpolyglot.org/lisp">http://hyperpolyglot.org/lisp</a>
+</li>
+
+<li>Common Lisp, Scheme, Clojure, And Elisp Compared<br />
+<a href="http://irreal.org/blog/?p=725">http://irreal.org/blog/?p=725</a>
+</li>
+
+<li>Does Elisp Suck?<br />
+<a href="http://irreal.org/blog/?p=675">http://irreal.org/blog/?p=675</a>
+</li>
+
+<li>Emacs pro mírně pokročilé (9): Elisp<br />
+<a href="https://www.root.cz/clanky/emacs-elisp/">https://www.root.cz/clanky/emacs-elisp/</a>
+</li>
+
+<li>If I want to learn lisp, are emacs and elisp a good choice?<br />
+<a href="https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/">https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/</a>
+</li>
+
+<li>Clojure(Script) Interactive Development Environment that Rocks!<br />
+<a href="https://github.com/clojure-emacs/cider">https://github.com/clojure-emacs/cider</a>
+</li>
+
+<li>An Introduction to Emacs Lisp<br />
+<a href="https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html">https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html</a>
+</li>
+
+<li>Emergency Elisp<br />
+<a href="http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html">http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html</a>
+</li>
+
+<li>Racket<br />
+<a href="https://racket-lang.org/">https://racket-lang.org/</a>
+</li>
+
+<li>The Racket Manifesto<br />
+<a href="http://felleisen.org/matthias/manifesto/">http://felleisen.org/matthias/manifesto/</a>
+</li>
+
+<li>MIT replaces Scheme with Python<br />
+<a href="https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/">https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/</a>
+</li>
+
+<li>Adventures in Advanced Symbolic Programming<br />
+<a href="http://groups.csail.mit.edu/mac/users/gjs/6.945/">http://groups.csail.mit.edu/mac/users/gjs/6.945/</a>
+</li>
+
+<li>Why MIT Switched from Scheme to Python (2009)<br />
+<a href="https://news.ycombinator.com/item?id=14167453">https://news.ycombinator.com/item?id=14167453</a>
+</li>
+
+<li>Starodávná stránka XLispu<br />
+<a href="http://www.xlisp.org/">http://www.xlisp.org/</a>
+</li>
+
+<li>AutoLISP<br />
+<a href="https://en.wikipedia.org/wiki/AutoLISP">https://en.wikipedia.org/wiki/AutoLISP</a>
+</li>
+
+<li>Seriál PicoLisp: minimalistický a výkonný interpret Lispu<br />
+<a href="https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/">https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/</a>
+</li>
+
+<li>Common Lisp<br />
+<a href="https://common-lisp.net/">https://common-lisp.net/</a>
+</li>
+
+<li>Getting Going with Common Lisp<br />
+<a href="https://cliki.net/Getting%20Started">https://cliki.net/Getting%20Started</a>
+</li>
+
+<li>Online Tutorial (Common Lisp)<br />
+<a href="https://cliki.net/online%20tutorial">https://cliki.net/online%20tutorial</a>
+</li>
+
+<li>Guile Emacs<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacs">https://www.emacswiki.org/emacs/GuileEmacs</a>
+</li>
+
+<li>Guile Emacs History<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacsHistory">https://www.emacswiki.org/emacs/GuileEmacsHistory</a>
+</li>
+
+<li>Guile is a programming language<br />
+<a href="https://www.gnu.org/software/guile/">https://www.gnu.org/software/guile/</a>
+</li>
+
+<li>MIT Scheme<br />
+<a href="http://groups.csail.mit.edu/mac/projects/scheme/">http://groups.csail.mit.edu/mac/projects/scheme/</a>
+</li>
+
+<li>SIOD: Scheme in One Defun<br />
+<a href="http://people.delphiforums.com/gjc//siod.html">http://people.delphiforums.com/gjc//siod.html</a>
+</li>
+
+<li>CommonLispForEmacs<br />
+<a href="https://www.emacswiki.org/emacs/CommonLispForEmacs">https://www.emacswiki.org/emacs/CommonLispForEmacs</a>
+</li>
+
+<li>Elisp: print, princ, prin1, format, message<br />
+<a href="http://ergoemacs.org/emacs/elisp_printing.html">http://ergoemacs.org/emacs/elisp_printing.html</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2018</small></p>
+</body>
+</html>
+
