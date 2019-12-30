@@ -1,0 +1,1250 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Úpravy Emacsu s Emacs Lisp: základní interní datové struktury Emacsu</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Úpravy Emacsu s Emacs Lisp: základní interní datové struktury Emacsu</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>V dnešním článku se již konečně dozvíme, jakými způsoby je možné ve skriptech naprogramovaných v Emacs Lispu pracovat s buffery i s dalšími interními strukturami samotného Emacsu.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Základní komunikace mezi Emacsem a Emacs Lispem</a></p>
+<p><a href="#k02">2. Základní interní datová struktura Emacsu: buffer</a></p>
+<p><a href="#k03">3. Aktuální pozice kurzoru &ndash; point</a></p>
+<p><a href="#k04">4. Zmenšení dostupné oblasti bufferu, návrat zpět na původní rozsah</a></p>
+<p><a href="#k05">5. Značka v&nbsp;bufferu &ndash; mark</a></p>
+<p><a href="#k06">6. Základní funkce pro pohyb kurzoru v&nbsp;bufferu</a></p>
+<p><a href="#k07">7. Ukázka použití funkce <strong>goto-char</strong></a></p>
+<p><a href="#k08">8. Přesun kurzoru po obrazových řádcích, podpora pro pohyb v&nbsp;programovém kódu</a></p>
+<p><a href="#k09">9. Vymazání specifikované oblasti bufferu</a></p>
+<p><a href="#k10">10. Interaktivní funkce</a></p>
+<p><a href="#k11">11. Vymazání zadaného počtu textových řádků z&nbsp;bufferu</a></p>
+<p><a href="#k12">12. Vymazání regionu mezi značkou a textovým kurzorem</a></p>
+<p><a href="#k13">13. Modifikace obsahu bufferu &ndash; zápis řetězců</a></p>
+<p><a href="#k14">14. Zápis opakujících se znaků do bufferu</a></p>
+<p><a href="#k15">15. Nepatrně složitější příklad &ndash; vykreslení pyramidy</a></p>
+<p><a href="#k16">16. Čtení znaků před a za aktuální pozicí kurzoru</a></p>
+<p><a href="#k17">17. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k18">18. Literatura</a></p>
+<p><a href="#k19">19. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Základní komunikace mezi Emacsem a Emacs Lispem</h2>
+
+<p>Mezi základní datové struktury, k&nbsp;nimž je možné přistupovat
+z&nbsp;Emacs Lispu, patří především <i>buffery</i> reprezentující editovaný
+soubor. Ke každému bufferu je přiřazen textový kurzor (<i>point</i>) se
+specifikovanou souřadnicí, značka (<i>mark</i>) zadaná uživatelem a
+popř.&nbsp;i tzv.&nbsp;<i>mark ring</i>, v&nbsp;němž se uchovávají pozice již
+zapsaných značek. Kromě bufferů se setkáme i se strukturami typu <i>window</i>.
+Tyto struktury představují pohled na buffer. Jednotlivá okna jsou vkládána do
+rámců (<i>frame</i>), s&nbsp;nimiž je možné taktéž manipulovat ve skriptech.
+Kromě toho se setkáme i s&nbsp;dalšími strukturami, například s&nbsp;mapami
+kláves atd. Dnes si popíšeme především funkce související s&nbsp;buffery,
+textovým kurzorem a značkou.</p>
+
+<p>Na začátku si připomeňme několik základních a užitečných operací, které dnes
+budeme používat:</p>
+
+<ol>
+<li>Nápovědu k&nbsp;jakékoli funkci získáte pomocí <strong>C-h f jméno-funkce Enter</strong></li>
+<li>Libovolnou funkci lze zavolat takto: <strong>M-: (volaná-funkce parametry) Enter</strong></li>
+<li>Naproti tomu interaktivní funkce či příkaz se spustí: <strong>M-x volaný-příkaz Enter</strong></li>
+</ol>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Základní interní datová struktura Emacsu: buffer</h2>
+
+<p>V&nbsp;mnoha modulech se přistupuje přímo k&nbsp;nějakému bufferu, který
+představuje (velmi zjednodušeně řečeno) obraz otevřeného souboru. Některé
+funkce přímo vyžadují specifikaci bufferu, kterého se má nějaká operace týkat,
+ovšem mnoho funkcí očekává, že pokud buffer není zadaný, použije se ten právě
+aktivní. Získání aktivního bufferu je snadné, protože pro tento účel existuje
+funkce nazvaná <strong>current-buffer</strong>:</p>
+
+<pre>
+<strong>(current-buffer)</strong>
+&nbsp;
+#&lt;buffer *scratch*&gt;
+</pre>
+
+<p></p>
+
+<pre>
+<strong>(current-buffer)</strong>
+&nbsp;
+#&lt;buffer *Help*&gt;
+</pre>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Aktuální pozice kurzoru &ndash; point</h2>
+
+<p>První důležitou hodnotou, která je přiřazena ke každému bufferu, je aktuální
+pozice textového kurzoru v&nbsp;bufferu. Tento kurzor je v&nbsp;Emacsu
+označován jménem <i>point</i> a stejné pojmenování tedy nalezneme i
+v&nbsp;Emacs Lispu. Z&nbsp;pohledu uživatele je textový kurzor lokalizován
+dvojicí souřadnic: číslem řádku a číslem sloupce (neboli pozicí kurzoru na
+textovém řádku). Ovšem v&nbsp;Emacs Lispu je <i>point</i> představován jediným
+číslem, které &ndash; pokud máme být zcela přesní &ndash; neoznačuje přímo
+pozici nějakého znaku, ale místo ležící mezi dvěma znaky (proto také existují
+funkce jako <strong>following-char</strong> a <strong>preceding-char</strong>
+popsané níže). První možná pozice kurzoru má číslo (index) 1, poslední možná
+pozice pak odpovídá velikosti bufferu zvětšené o jedničku. Na začátku bufferu
+se jedná o místo před prvním znakem a na konci bufferu o místo ležící až za
+znakem posledním.</p>
+
+<p>Mezi základní funkce pro zjišťování informací o kurzoru a o dalších
+relevantních údajích patří:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>point</td><td>vrátí aktuální pozici kurzoru v&nbsp;bufferu</td></tr>
+<tr><td>point-min</td><td>minimální možná pozice kurzoru (typicky jedna)</td></tr>
+<tr><td>point-max</td><td>maximální souřadnice textového kurzoru</td></tr>
+<tr><td>buffer-end</td><td>začátek nebo konec bufferu (podle hodnoty parametru)</td></tr>
+<tr><td>buffer-size</td><td>velikost bufferu (ve znacích)</td></tr>
+</table>
+
+<p>Zkusme si tyto funkce zavolat, ať již ze scratch bufferu, nebo přes
+klávesovou zkratku <strong>M-:</strong></p>
+
+<p>Získání aktuální pozice kurzoru:</p>
+
+<pre>
+<strong>(point)</strong>
+9
+</pre>
+
+<p>Pokud se kurzor posune níže, dostaneme samozřejmě jinou hodnotu (zde
+používáme interaktivní vyhodnocení funkce přímo ve scratch bufferu):</p>
+
+<pre>
+&nbsp;
+;; This buffer is for text that is not saved, and for Lisp evaluation.
+;; To create a file, visit it with <open> and enter text in its buffer.
+&nbsp;
+<strong>(point)</strong>
+164
+</pre>
+
+<p>Při běžném nastavení bude hodnota vrácená funkcí <strong>point-min</strong>
+rovna jedné:</p>
+
+<pre>
+<strong>(point-min)</strong>
+1
+</pre>
+
+<p>Hodnota vrácená funkcí <strong>point-max</strong> bude o jedničku vyšší, než
+velikost bufferu:</p>
+
+<pre>
+<strong>(point-max)</strong>
+204
+&nbsp;
+<strong>(buffer-size)</strong>
+203
+</pre>
+
+<p>Funkce <strong>buffer-end</strong> vypíše index začátku bufferu nebo jeho
+konce:</p>
+
+<pre>
+<strong>(buffer-end 0)</strong>
+1
+&nbsp;
+<strong>(buffer-end 0)</strong>
+159
+</pre>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Zmenšení dostupné oblasti bufferu, návrat zpět na původní rozsah</h2>
+
+<p>Některé funkce popsané <a href="#k03">v&nbsp;předchozí kapitole</a> zdánlivě
+postrádají význam. Proč je například nutné mít funkci
+<strong>buffer-size</strong> a <strong>point-max</strong>, když dávají snadno
+odvoditelné výsledky (liší se jen o jedničku)? Ve skutečnosti jsou všechny tyto
+funkce užitečné, protože Emacs má ještě jednu zajímavou vlastnost &ndash;
+dokáže omezit editovatelnou oblast bufferu, čehož je možné využít v&nbsp;mnoha
+pluginech. S&nbsp;určením editovatelné oblasti souvisí dvě funkce:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>narrow-to-region</td><td>nastavuje oblast, kterou je možné editovat</td></tr>
+<tr><td>widen</td><td>opak předchozí funkce: zpřístupní celý buffer</td></tr>
+</table>
+
+<p>Můžeme si to snadno vyzkoušet:</p>
+
+<pre>
+<strong>(narrow-to-region 100 200)</strong>
+</pre>
+
+<p>Po zadání předchozího příkazu je zbytek bufferu skryt a zobrazeno zůstane
+pouze sto znaků mezi pozicemi 100 a 200. Tuto oblast lze libovolně editovat
+&ndash; zvětšovat ji (přidáním znaků), zmenšovat (smazáním znaků) atd.</p>
+
+<p>Po spuštění funkce (či stejně pojmenovaného příkazu):</p>
+
+<pre>
+<strong>(widen)</strong>
+</pre>
+
+<p>se opět objeví zbytek textu, který byl před předchozími operaci chráněn.</p>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Značka v&nbsp;bufferu &ndash; mark</h2>
+
+<p>V&nbsp;předchozích dvou kapitolách jsme se seznámili s&nbsp;textovým
+kurzorem (<i>point</i>), což je vlastně jedna souřadnice přiřazená ke každému
+bufferu. Druhou důležitou souřadnicí může být takzvaná značka (<i>mark</i>). Ta
+je typicky nastavována uživatelem pomocí klávesové zkratky
+<strong>C-space</strong> nebo <strong>C-@</strong>.</p>
+
+<p><div class="rs-tip-major">Poznámka: technicky se klávesovou zkratkou
+<strong>C-@</strong> zadává ASCII kód NUL, tj.&nbsp;první znak v&nbsp;ASCII
+tabulce, protože znak @ má ASCII kód 64 a stiskem modifikátoru Ctrl snižujeme
+ASCII kód právě o hodnotu 64. To je také důvod, proč stisk <strong>C+I</strong>
+tak odpovídá znaku HT (Horizontal Tab), <strong>C+H</strong> znaku BS
+(Backspace) (<a
+href="https://www.gnu.org/software/emacs/manual/html_node/efaq/Backspace-invokes-help.html">existují
+ovšem metody, jak klávesy rozlišit</a>), <strong>C+[</strong> řídicímu znaku
+ESC, <strong>C+M</strong> konci řádku (CR) atd. Vše osvětlí pohled na <a
+href="https://en.wikipedia.org/wiki/ASCII#Character_set">ASCII
+tabulku</a>.</div></p>
+
+<p>Taktéž je možné použít příkaz <strong>C-X C-X</strong> pro prohození role
+značky a kurzoru (kurzor přeskočí na místo původní značky, zatímco značka je
+nastavena na místo, kde se kurzor nacházel). Značky je možné ukládat a tím
+pádem si je zapamatovat do datové struktury nazvané <i>mark ring</i>, která je
+přiřazena ke každému bufferu (mark ring se většinou chová jako běžný zásobník).
+Pro práci s&nbsp;mark ringem slouží klávesové zkratky <strong>C-space
+C-space</strong> (push) a <strong>C-u C-space</strong> (restore, pop).</p>
+
+<p>Nás dnes budou zajímat především funkce volané z&nbsp;Emacs Lispu, které
+dokážou se značkou i s&nbsp;mark ringem pracovat:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>mark</td><td>funkce vrátí pozici značky popř.&nbsp;<strong>nil</strong>, pokud není značka nastavena</td></tr>
+<tr><td>set-mark</td><td>nastavení značky (nemělo by se používat ve skriptech, manipulace se značkou by měla být jen interaktivní)</td></tr>
+<tr><td>push-mark</td><td>uložení značky do mark ringu, popř.&nbsp;lze specifikovat novou pozici značky</td></tr>
+<tr><td>pop-mark</td><td>opak předchozí funkce, obnovení značky z&nbsp;mark ringu</td></tr>
+</table>
+
+<p>Funkcí ve skutečnosti existuje ještě více, ovšem většinou si vystačíme pouze
+se zjištěním pozice značky, a to ve chvíli, kdy skripty psané v&nbsp;Emacs
+Lispu mají pracovat s&nbsp;nějakou uživatelem označenou oblastí.</p>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Základní funkce pro pohyb kurzoru v&nbsp;bufferu</h2>
+
+<p>Mezi další užitečné funkce dostupné skriptům napsaným v&nbsp;Emacs Lispu,
+patří funkce určené pro pohyb kurzoru (<i>point</i>) v&nbsp;bufferu. Kromě
+první funkce, která nastaví kurzor na určený index, pracují všechny ostatní
+funkce podobně jako uživatelské příkazy, tj.&nbsp;poskytují relativní pohyb
+kurzoru po znacích, slovech, řádcích atd.:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>goto-char</td><td>přesun kurzoru na zadanou pozici (index v&nbsp;rámci bufferu)</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>forward-char</td><td>přesun kurzoru dopředu o jeden znak (výchozí) či o zadaný počet znaků</td></tr>
+<tr><td>backward-char</td><td>přesun kurzoru vzad o jeden znak (výchozí) či o zadaný počet znaků</td></tr>
+<tr><td>forward-word</td><td>přesun kurzoru dopředu o jedno slovo (výchozí) či o zadaný počet slov</td></tr>
+<tr><td>backward-word</td><td>přesun kurzoru vzad o jedno slovo (výchozí) či o zadaný počet slov</td></tr>
+<tr><td>beginning-of-line</td><td>přesun kurzoru na začátek řádky (výchozí) popř.&nbsp;skok na předchozí řádky</td></tr>
+<tr><td>end-of-line</td><td>přesun kurzoru na konec řádky (výchozí) popř.&nbsp;skok na následující řádky</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>forward-line</td><td>přesun kurzoru na předchozí řádek, pokud je zadáno číslo, jedná se o relativní přesun vpřed/vzad o N řádků</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>beginning-of-buffer</td><td>přesun kurzoru na začátek bufferu</td></tr>
+<tr><td>end-of-buffer</td><td>přesun kurzoru na konec bufferu</td></tr>
+</table>
+
+<p><div class="rs-tip-major">Poznámka: termínem &bdquo;řádek&ldquo; je myšlen
+logický řádek v&nbsp;textu. Logický řádek může být zobrazen na větším množství
+obrazových řádků, v&nbsp;závislosti na nastavení bufferu a šířce okna
+Emacsu.</div></p>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Ukázka použití funkce <strong>goto-char</strong></h2>
+
+<p>Na následující pětici screenshotů je ukázáno použití funkce
+<strong>goto-char</strong>, které se předává pozice kurzoru vypočtená funkcemi
+<strong>point-min</strong> a <strong>point-max</strong>, o nichž jsme se již
+zmínili <a href="#k03">ve třetí kapitole</a>. Samozřejmě se jedná o umělý
+příklad, protože stejného efektu je možné dosáhnout funkcemi
+<strong>beginning-of-buffer</strong> a <strong>end-of-buffer</strong>:</p>
+
+<a href="https://www.root.cz/obrazek/339867/"><img src="https://i.iinfo.cz/images/495/emacs7-1-prev.png" class="image-339867" alt="&#160;" width="370" height="244" /></a>
+<p><i>Obrázek 1: Původní obsah bufferu s&nbsp;pozicí kurzoru.</i></p>
+
+<a href="https://www.root.cz/obrazek/339868/"><img src="https://i.iinfo.cz/images/495/emacs7-2-prev.png" class="image-339868" alt="&#160;" width="370" height="244" /></a>
+<p><i>Obrázek 2: Zadání příkazu pro přesun kurzoru na začátek bufferu.</i></p>
+
+<a href="https://www.root.cz/obrazek/339869/"><img src="https://i.iinfo.cz/images/495/emacs7-3-prev.png" class="image-339869" alt="&#160;" width="370" height="244" /></a>
+<p><i>Obrázek 3: Výsledek předchozího příkazu.</i></p>
+
+<a href="https://www.root.cz/obrazek/339870/"><img src="https://i.iinfo.cz/images/495/emacs7-4-prev.png" class="image-339870" alt="&#160;" width="370" height="244" /></a>
+<p><i>Obrázek 4: Zadání příkazu pro přesun kurzoru na konec bufferu.</i></p>
+
+<a href="https://www.root.cz/obrazek/339871/"><img src="https://i.iinfo.cz/images/495/emacs7-5-prev.png" class="image-339871" alt="&#160;" width="370" height="244" /></a>
+<p><i>Obrázek 5: Výsledek předchozího příkazu</i></p>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Přesun kurzoru po obrazových řádcích, podpora pro pohyb v&nbsp;programovém kódu</h2>
+
+<p>Další skupina funkcí taktéž slouží pro přesuny kurzoru, ale nikoli po
+fyzických znacích nebo řádcích, ale po řádcích tak, jak jsou viditelné na
+obrazovce. Chování tedy bude odlišné ve chvíli, kdy jsou zobrazeny dlouhé
+zalomené řádky:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>vertical-motion</td><td>relativní přesun o N obrazových řádků nahoru nebo dolů, na základě specifikovaného parametru</td></tr>
+<tr><td>move-to-window-line </td><td>přesun na specifikovaný obrazový řádek v&nbsp;zobrazeném oknu</td></tr>
+<tr><td>count-screen-lines</td><td>vrátí počet obrazových řádků popř.&nbsp;přepočítá obrazové řádky mezi dvěma pozicemi</td></tr>
+</table>
+
+<p>Funkci <strong>vertical-motion</strong> se předává celé kladné či záporné
+číslo udávající, o kolik obrazových řádků se má kurzor posunout nahoru či dolů.
+Před vertikálním posunem je kurzor přesunut na první sloupec. Naproti tomu
+funkce <strong>move-to-window-line</strong> očekává zadání indexu řádku
+v&nbsp;právě zobrazeném oknu. Na rozdíl od pozice kurzoru či značky jsou tyto
+řádky číslovány od 0.</p>
+
+<a href="https://www.root.cz/obrazek/339872/"><img src="https://i.iinfo.cz/images/495/emacs7-6-prev.png" class="image-339872" alt="&#160;" width="370" height="244" /></a>
+<p><i>Obrázek 6: Pokud je obsah bufferu menší, než počet obrazových řádků,
+vrátí se nižší číslo (počet skutečně obsazených obrazových řádků obsahem
+bufferu).</i></p>
+
+<p>Další skupina funkcí je mnohem zajímavější a využijí je například uživatelé
+pracující se zdrojovými kódy naprogramovanými ve Scheme, Emacs Lispu nebo i
+v&nbsp;Clojure. Tyto funkce totiž dokážou rozpoznat a zpracovat rekurzivně
+vnořené seznamy:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>forward-list</td><td>přesun kurzoru přes seznam (seznamy) směrem dopředu</td></tr>
+<tr><td>backward-list</td><td>přesun kurzoru přes seznam (seznamy) směrem dozadu</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>up-list</td><td>přesun kurzoru směrem dopředu na takové místo, kde končí vnitřní seznam (seznamy), vyskočení z&nbsp;N-seznamů</td></tr>
+<tr><td>down-list</td><td>opak předchozí funkce, &bdquo;vnoření&ldquo; do vnitřního seznamu (seznamů)</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>beginning-of-defun</td><td>skok na začátek funkce (kurzor se předtím nachází uvnitř její definice)</td></tr>
+<tr><td>end-of-defun</td><td>skok na konec funkce</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>forward-sexp</td><td>přeskok zadaného počtu S-výrazů</td></tr>
+<tr><td>backward-sexp</td><td>přeskok zadaného počtu S-výrazů</td></tr>
+</table>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-7.png" class="image-339873" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 7: Kurzor před zavoláním funkce
+<strong>forward-list</strong>.</i></p>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-8.png" class="image-339874" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 8: Kurzor po zavolání funkce
+<strong>forward-list</strong>.</i></p>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-9.png" class="image-339875" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 9: Kurzor před zavoláním funkce
+<strong>up-list</strong>.</i></p>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-10.png" class="image-339876" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 10: Kurzor po zavolání funkce <strong>up-list</strong>.</i></p>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Vymazání specifikované oblasti bufferu</h2>
+
+<p>Konečně se dostáváme k&nbsp;funkcím určeným pro manipulaci s&nbsp;obsahem
+bufferu. Tyto funkce jsou samozřejmě velmi důležité, protože mnoho modulů
+napsaných pro Emacs nějakým způsobem s&nbsp;obsahem bufferů manipuluje
+(například formátuje zdrojový kód, provádí automatické doplnění názvů objektů
+atd.). První tři funkce souvisí s&nbsp;mazáním oblasti z&nbsp;bufferu. Tato
+oblast je specifikována dvojicí souřadnic od-do. Jedná se o tyto funkce:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>delete-region</td><td>oblast mezi počáteční a koncovou souřadnicí je vymazána (implementováno jako nativní funkce)</td></tr>
+<tr><td>kill-region</td><td>oblast mezi počáteční a koncovou souřadnicí je vymazána a přesunuta do kill-ringu</td></tr>
+<tr><td>copy-region-as-kill</td><td>oblast mezi počáteční a koncovou souřadnicí je přesunuta do kill-ringu, ovšem bez vymazání</td></tr>
+</table>
+
+<p><div class="rs-tip-major">Poznámka: dejte si prosím pozor na skutečnost, že
+<strong>kill-region</strong> existuje jako funkce (je nutné ji předat dvojici
+souřadnic, tak jak je napsáno v&nbsp;předchozí tabulce) a současně i jako
+příkaz, kterému se automaticky předává pozice značky a kurzoru. Funkce se volá
+přes <strong>M-:</strong>, příkaz přes <strong>M-x</strong>:</div></p>
+
+<pre>
+(kill-region od do)
+</pre>
+
+<p>Podívejme se nyní na jednoduchou uživatelsky definovanou lispovskou funkci,
+která po svém zavolání smaže dva řádky. Nejprve se textový kurzor přesune na
+začátek aktuálního řádku. Dále se zapamatuje jeho nová pozice (do lokální
+proměnné <strong>p1</strong>), kurzor se přesune o dva řádky dopředu a konečně
+se zavolá funkce <strong>kill-region</strong>, které se předá původní pozice
+textového kurzoru i pozice nová:</p>
+
+<pre>
+(defun delete-two-lines
+    ()
+  (beginning-of-line)
+  (let ((p1 (point)))
+    (forward-line)
+    (forward-line)
+    (kill-region p1 (point))))
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: kromě výše použité funkce
+<strong>forward-line</strong> ještě existuje podobná funkce nazvaná
+<strong>next-line</strong>. Ta je ovšem určena především pro interaktivní
+použití, zatímco v&nbsp;lispovských programech by se měla používat právě funkce
+<strong>forward-line</strong>.</div></p>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-11.png" class="image-339877" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 11: Zavolání funkce pro vymazání dvou řádků.</i></p>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-12.png" class="image-339878" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 12: Výsledek aplikace funkce
+<strong>delete-two-lines</strong>.</i></p>
+
+<p>Předchozí funkci si můžeme vylepšit tak, aby dokázala smazat libovolný počet
+textových řádků. Funkce tedy bude zavolaná s&nbsp;parametrem
+<strong>number</strong> a uvnitř jejího těla se bude volat
+<strong>forward-line</strong> ve smyčce představované formou
+<strong>dotimes</strong>, s&nbsp;níž jsme se již seznámili v&nbsp;úvodních
+částech tohoto seriálu:</p>
+
+<pre>
+(defun delete-n-lines
+    (number)
+  (beginning-of-line)
+  (let ((p1 (point)))
+    (dotimes (i number)
+      (forward-line))
+    (kill-region p1 (point))))
+</pre>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-13.png" class="image-339879" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 13: Zavolání funkce pro vymazání čtyř řádků.</i></p>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-14.png" class="image-339880" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 14: Výsledek aplikace funkce
+<strong>delete-n-lines</strong>.</i></p>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Interaktivní funkce</h2>
+
+<p>Samotné LISPovské funkce jsou skutečně základními stavebními bloky všech
+modulů naprogramovaných v&nbsp;Emacs Lispu. Ovšem pro jejich zavolání většinou
+potřebujeme ještě jednu maličkost &ndash; možnost vytvořit z&nbsp;funkce
+příkaz, který se zavolá buď přes klávesovou zkratku <strong>M-x
+jméno-příkazu</strong> nebo se namapuje na nějakou uživatelem zvolenou
+klávesovou zkratku. V&nbsp;Emacs Lispu je nutné toto chování funkcí vynutit
+uvedením speciální formy <strong>interactive</strong>. Typicky se této
+speciální formě předává řetězec, kterým je specifikováno, jakým způsobem se
+budou nyní již interaktivní funkci-příkazu předávat parametry. V&nbsp;řetězci
+může být dále obsažena otázka zobrazená uživateli. V&nbsp;tomto řetězci je
+možné definovat například:</p>
+
+<table>
+<tr><th>#</th><th>Znak předaný formě <strong>interactive</strong></th><th>Význam</th></tr>
+<tr><td>1</td><td>a</td><td>jméno funkce, podporuje automatické doplnění jména</td></tr>
+<tr><td>2</td><td>b</td><td>jméno existujícího bufferu, podporuje automatické doplnění jména</td></tr>
+<tr><td>3</td><td>B</td><td>jméno bufferu popř.&nbsp;nového bufferu, podporuje automatické doplnění jména</td></tr>
+<tr><td>4</td><td>c</td><td>jeden znak</td></tr>
+<tr><td>5</td><td>C</td><td>jméno příkazu, podporuje automatické doplnění jména</td></tr>
+<tr><td>6</td><td>d</td><td>pozice kurzoru (celé kladné číslo)</td></tr>
+<tr><td>7</td><td>f</td><td>jméno existujícího souboru</td></tr>
+<tr><td>8</td><td>F</td><td>jméno souboru, který nemusí existovat</td></tr>
+<tr><td>9</td><td>k</td><td>sekvence kláves</td></tr>
+<tr><td>10</td><td>m</td><td>index značky (mark)</td></tr>
+<tr><td>11</td><td>M</td><td>libovolný text načtený z&nbsp;minibufferu</td></tr>
+<tr><td>12</td><td>n</td><td>číslo přečtené z&nbsp;minibufferu</td></tr>
+<tr><td>13</td><td>N</td><td>číslo zadané nepřímo přes prefix</td></tr>
+<tr><td>14</td><td>s</td><td>řetězec</td></tr>
+<tr><td>15</td><td>p</td><td>prefix zadaný klávesou <strong>C-u</strong></td></tr>
+<tr><td>16</td><td>r</td><td>dva parametry: pozice textového kurzoru a pozice značky; velmi užitečné, jak uvidíme dále</td></tr>
+</table>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Vymazání zadaného počtu textových řádků z&nbsp;bufferu</h2>
+
+<p>Funkci <strong>delete-n-lines</strong>, s&nbsp;jejíž první verzí jsme se
+seznámili <a href="#k09">v&nbsp;deváté kapitole</a> můžeme snadno změnit na
+interaktivní příkaz. Do funkce postačuje přidat řádek:</p>
+
+<pre>
+  (interactive "n")
+</pre>
+
+<p>Tímto řádkem oznamujeme, že funkci bude možné spustit interaktivně přes
+<strong>M-x delete-n-lines</strong> a současně se Emacs zeptá na počet řádek,
+které se mají vymazat:</p>
+
+<pre>
+(defun delete-n-lines
+    (number)
+  <strong>(interactive "n")</strong>
+  (beginning-of-line)
+  (let ((p1 (point)))
+    (dotimes (i number)
+      (forward-line))
+    (kill-region p1 (point))))
+</pre>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-15.png" class="image-339881" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 15: Interaktivní varianta funkce
+<strong>delete-n-lines</strong>.</i></p>
+
+<p>Ve funkci <strong>interactive</strong> je možné specifikovat i zprávu
+zobrazenou uživateli, což je samozřejmě mnohem lepší, než pouhý nicneříkající
+blikající kurzor v&nbsp;minibufferu:</p>
+
+<pre>
+(defun delete-n-lines
+    (number)
+  <strong>(interactive "nHow many lines? ")</strong>
+  (beginning-of-line)
+  (let ((p1 (point)))
+    (dotimes (i number)
+      (forward-line))
+    (kill-region p1 (point))))
+</pre>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-16.png" class="image-339882" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 16: Dotaz na počet řádků, které se mají funkcí
+<strong>delete-n-lines</strong> smazat.</i></p>
+
+<p>Další varianta této funkce akceptuje prefix zadaný klávesou
+<strong>C-u</strong>. Tato funkce se při svém spuštění již neptá na počet řádků
+a ve výchozím stavu (pokud není prefix zadán) se smaže jediný řádek:</p>
+
+<pre>
+(defun delete-n-lines
+    (number)
+  <strong>(interactive "p")</strong>
+  (beginning-of-line)
+  (let ((p1 (point)))
+    (dotimes (i number)
+      (forward-line))
+    (kill-region p1 (point))))
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Vymazání regionu mezi značkou a textovým kurzorem</h2>
+
+<p>Další interaktivní funkce bude velmi jednoduchá, protože bude sloužit
+k&nbsp;vymazání oblasti, která se nachází mezi zadanou značkou a textovým
+kurzorem. Povšimněte si, že se v&nbsp;deklaraci <strong>interactive</strong>
+používá znak &bdquo;r&ldquo;, který jako jediný zajistí předání dvou parametrů
+funkci &ndash; point a mark. Tyto dva údaje bez dalšího zpracování předáme do
+standardní funkce nazvané <strong>kill-region</strong>:</p>
+
+<pre>
+(defun delete-text
+    (point mark)
+  <strong>(interactive "r")</strong>
+  (kill-region point mark))
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: asi jsme si povšimli, že je tato
+interaktivní funkce zbytečná, neboť se namísto ní dá přímo použít
+<strong>kill-region</strong>.</div></p>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Modifikace obsahu bufferu &ndash; zápis řetězců</h2>
+
+<p>Nyní již víme, jakým způsobem je možné z&nbsp;bufferu vymazat určité znaky
+či celou oblast. Jedná se samozřejmě o užitečné funkce, ovšem mnohem častěji
+uživatelé od pluginů očekávají, že budou text automaticky přidávat :-)
+K&nbsp;tomu slouží zejména funkce <strong>insert</strong>. Jde o jednu ze
+základních funkcí implementovanou přímo v&nbsp;nativním kódu. Této funkci se
+předává pouze řetězec popř.&nbsp;znaky, které se mají do bufferu přidat, a to
+na pozici, na níž se nachází textový kurzor. Příkladem použití může být pomocná
+funkce, která do bufferu připíše oddělovací řádek obsahující pouze pomlčky:</p>
+
+<pre>
+(defun insert-hr
+    ()
+  (interactive)
+  (beginning-of-line)
+  (insert "---------------------")
+  (insert "\n"))
+</pre>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-17.png" class="image-339883" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 17: Nápověda k&nbsp;funkci <strong>insert</strong>.</i></p>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Zápis opakujících se znaků do bufferu</h2>
+
+<p>Kromě <a href="#k13">výše popsané</a> funkce <strong>insert</strong> je
+užitečná i funkce nazvaná <strong>insert-char</strong>. Té lze předat znak
+(v&nbsp;Emacs Lispu s&nbsp;prefixem ?) a taktéž počet opakování znaku. Pokud
+tedy budeme chtít často do zdrojového kódu vkládat oddělovací řádek
+s&nbsp;osmdesáti hvězdičkami, lze to zařídit velmi jednoduše:</p>
+
+<pre>
+(defun insert-stars
+    ()
+  (interactive)
+  (beginning-of-line)
+  (insert-char ?* 80)
+  (insert "\n"))
+</pre>
+
+<p>Popř.&nbsp;se uživatele můžeme zeptat, kolik hvězdiček ráčí ve svém textu
+mít :-)</p>
+
+<pre>
+(defun insert-stars
+    (number)
+  (interactive "n# of stars? ")
+  (beginning-of-line)
+  (insert-char ?* number)
+  (insert "\n"))
+</pre>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-18.png" class="image-339884" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 18: Zdrojový kód před zavoláním funkce <strong>insert-stars</strong>.</i></p>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-19.png" class="image-339885" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 19: Zdrojový kód po zavolání funkce <strong>insert-stars</strong>.</i></p>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Nepatrně složitější příklad &ndash; vykreslení pyramidy</h2>
+
+<p>Poslední demonstrační příklad, který si dnes ukážeme, slouží
+k&nbsp;vykreslení pyramidy složené z&nbsp;hvězdiček. Uživatel pouze potřebuje
+zadat výšku pyramidy (v&nbsp;úsečkách). Povšimněte si, že si stále vystačíme
+pouze s&nbsp;několika funkcemi &ndash; pohyb kurzoru a vložení znaků
+popř.&nbsp;řetězce do aktivního bufferu:</p>
+
+<pre>
+(defun pyramid
+    (number)
+  (interactive "n# of lines? ")
+  (beginning-of-line)
+  (dotimes (i (+ 1 number))
+    (insert-char ?\s (- number i))
+    (insert-char ?* (- (* 2 i) 1))
+    (insert "\n")))
+</pre>
+
+<p>Opět se podívejme na způsob použití této jednoduché interaktivní funkce:</p>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-20.png" class="image-339886" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 20: Pyramidy výšky 1, 2 a 5.</i></p>
+
+<img src="https://i.iinfo.cz/images/495/emacs7-21.png" class="image-339887" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 21: Pyramida výšky 10.</i></p>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Čtení znaků před a za aktuální pozicí kurzoru</h2>
+
+<p>Skripty napsané v&nbsp;Emacs Lispu dokážou jednoduše přečíst znaky, které se
+nachází před popř.&nbsp;za pozicí kurzoru. Připomeňme si, že pozice kurzoru se
+nachází přesně mezi dvěma znaky (popř.&nbsp;před prvním znakem či za posledním
+znakem), takže má skutečně význam mluvit o znakem <i>před</i> a <i>za</i>
+kurzorem. Jedná se o tyto dvě funkce:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>preceding-char</td><td>vrátí kód předchozího znaku</td></tr>
+<tr><td>following-char</td><td>vrátí kód následujícího znaku</td></tr>
+</table>
+
+<p>Po přesunu mezi první dva znaky (což jsou středníky) bude chování obou výše
+zmíněných funkcí následující:</p>
+
+<pre>
+<strong>(goto-char 2)</strong>
+2
+<strong>(preceding-char)</strong>
+59
+<strong>(following-char)</strong>
+59
+</pre>
+
+<p>Chování funkcí na začátku bufferu:</p>
+
+<pre>
+<strong>(goto-char (point-min))</strong>
+1
+<strong>(preceding-char)</strong>
+0
+<strong>(following-char)</strong>
+59
+</pre>
+
+<p>Chování funkcí na konci bufferu:</p>
+
+<pre>
+<strong>(goto-char (point-max))</strong>
+145
+<strong>(preceding-char)</strong>
+10
+<strong>(following-char)</strong>
+0
+</pre>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Zdrojové kódy většiny dnes popsaných demonstračních příkladů byly uloženy do
+Git repositáře dostupného na adrese <a
+href="https://github.com/tisnik/elisp-examples">https://github.com/tisnik/elisp-examples</a>
+(stále na GitHubu :-). V&nbsp;případě, že nebudete chtít klonovat celý
+repositář (ten je ovšem stále velmi malý, dnes má doslova několik kilobajtů),
+můžete namísto toho použít odkazy na jednotlivé příklady, které naleznete
+v&nbsp;následující tabulce:</p>
+
+<table>
+<tr><th> #</th><th>Demonstrační příklad</th><th>Popis</th><th>Cesta</th></tr>
+<tr><td> 1</td><td>01_point.el</td><td>funkce pro zjištění informací o kurzoru a bufferu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/01_point.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/01_point.el</a></td></tr>
+<tr><td> 2</td><td>02_narrow_widen.el</td><td>funkce <strong>narrow</strong> a <strong>widen</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/02_narrow_widen.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/02_narrow_widen.el</a></td></tr>
+<tr><td> 3</td><td>03_delete_two_lines.el</td><td>vymazání dvou řádků z&nbsp;bufferu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/03_delete_two_lines.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/03_delete_two_lines.el</a></td></tr>
+<tr><td> 4</td><td>04_delete_n_lines_A.el</td><td>funkce pro vymazání N řádků, první varianta</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/04_delete_n_lines_A.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/04_delete_n_lines_A.el</a></td></tr>
+<tr><td> 5</td><td>05_delete_n_lines_B.el</td><td>funkce pro vymazání N řádků, druhá varianta</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/05_delete_n_lines_B.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/05_delete_n_lines_B.el</a></td></tr>
+<tr><td> 6</td><td>06_delete_n_lines_C.el</td><td>funkce pro vymazání N řádků, třetí varianta</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/06_delete_n_lines_C.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/06_delete_n_lines_C.el</a></td></tr>
+<tr><td> 7</td><td>07_delete_n_lines_D.el</td><td>funkce pro vymazání N řádků, čtvrtá varianta</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/07_delete_n_lines_D.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/07_delete_n_lines_D.el</a></td></tr>
+<tr><td> 8</td><td>08_delete_text.el</td><td>vymazání označeného textu z&nbsp;bufferu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/08_delete_text.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/08_delete_text.el</a></td></tr>
+<tr><td> 9</td><td>09_insert_hr.el</td><td>zápis horizontální řádky do bufferu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/09_insert_hr.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/09_insert_hr.el</a></td></tr>
+<tr><td>10</td><td>10_insert_stars_A.el</td><td>zápis horizontální řádky do bufferu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/10_insert_stars_A.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/10_insert_stars_A.el</a></td></tr>
+<tr><td>11</td><td>11_insert_stars_B.el</td><td>zápis horizontální řádky do bufferu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/11_insert_stars_B.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/11_insert_stars_B.el</a></td></tr>
+<tr><td>12</td><td>12_draw_pyramid.el</td><td>vykreslení pyramidy zadané výšky</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-6/12_draw_pyramid.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-6/12_draw_pyramid.el</a></td></tr>
+</table>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Literatura</h2>
+
+<ol>
+
+<li>McCarthy<br />
+<i>&bdquo;Recursive functions of symbolic expressions and their computation by machine, part I&ldquo;</i><br />
+1960
+</li>
+
+<li>Guy L. Steele<br />
+<i>&bdquo;History of Scheme&ldquo;</i><br />
+2006, Sun Microsystems Laboratories
+</li>
+
+<li>Kolář J., Muller K.:<br />
+<i>&bdquo;Speciální programovací jazyky&ldquo;</i><br />
+Praha 1981
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 9, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., October 1987
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 10, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., September 1988
+</li>
+
+<li>McCarthy, John; Abrahams, Paul W.; Edwards, Daniel J.; Hart, Timothy P.; Levin, Michael I.<br />
+<i>&bdquo;LISP 1.5 Programmer's Manual&ldquo;</i><br />
+MIT Press. ISBN 0 262 130 1 1 4
+</li>
+
+<li>Carl Hewitt; Peter Bishop and Richard Steiger<br />
+<i>&bdquo;A Universal Modular Actor Formalism for Artificial Intelligence&ldquo;</i><br />
+1973
+</li>
+
+<li>Feiman, J.<br />
+<i>&bdquo;The Gartner Programming Language Survey (October 2001)&ldquo;</i><br />
+Gartner Advisory
+</li>
+
+<li>Harold Abelson, Gerald Jay Sussman, Julie Sussman:<br />
+<i>Structure and Interpretation of Computer Programs</i><br />
+MIT Press. 1985, 1996 (a možná vyšel i další přetisk)
+</li>
+
+<li>Paul Graham:<br />
+<i>On Lisp</i><br />
+Prentice Hall, 1993<br />
+Dostupné online na stránce <a href="http://www.paulgraham.com/onlisptext.html">http://www.paulgraham.com/onlisptext.html</a>
+</li>
+
+<li>David S. Touretzky<br />
+<i>Common LISP: A Gentle Introduction to Symbolic Computation (Dover Books on Engineering)</i><br />
+</li>
+
+<li>Peter Norvig<br />
+<i>Paradigms of Artificial Intelligence Programming: Case Studies in Common Lisp</i>
+</li>
+
+<li>Patrick Winston, Berthold Horn<br />
+<i>Lisp (3rd Edition)</i><br />
+ISBN-13: 978-0201083194, ISBN-10: 0201083191
+</li>
+
+<li>Matthias Felleisen, David Van Horn, Dr. Conrad Barski<br>
+<i>Realm of Racket: Learn to Program, One Game at a Time!</i><br />
+ISBN-13: 978-1593274917, ISBN-10: 1593274912 
+</li>
+
+</ol>
+
+
+
+<p><a name="k19"></a></p>
+<h2 id="k19">19. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>GNU Emacs Lisp Reference Manual: Point<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/elisp/Point.html">https://www.gnu.org/software/emacs/manual/html_node/elisp/Point.html</a>
+</li>
+
+<li>GNU Emacs Lisp Reference Manual: Narrowing<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/elisp/Narrowing.html">https://www.gnu.org/software/emacs/manual/html_node/elisp/Narrowing.html</a>
+</li>
+
+<li>GNU Emacs Lisp Reference Manual: Functions that Create Markers<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/elisp/Creating-Markers.html">https://www.gnu.org/software/emacs/manual/html_node/elisp/Creating-Markers.html</a>
+</li>
+
+<li>GNU Emacs Lisp Reference Manual: Motion<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/elisp/Motion.html#Motion">https://www.gnu.org/software/emacs/manual/html_node/elisp/Motion.html#Motion</a>
+</li>
+
+<li>GNU Emacs Lisp Reference Manual: Basic Char Syntax<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/elisp/Basic-Char-Syntax.html">https://www.gnu.org/software/emacs/manual/html_node/elisp/Basic-Char-Syntax.html</a>
+</li>
+
+<li>Elisp: Sequence: List, Array<br />
+<a href="http://ergoemacs.org/emacs/elisp_list_vs_vector.html">http://ergoemacs.org/emacs/elisp_list_vs_vector.html</a>
+</li>
+
+<li>Elisp: Property List<br />
+<a href="http://ergoemacs.org/emacs/elisp_property_list.html">http://ergoemacs.org/emacs/elisp_property_list.html</a>
+</li>
+
+<li>Elisp: Hash Table<br />
+<a href="http://ergoemacs.org/emacs/elisp_hash_table.html">http://ergoemacs.org/emacs/elisp_hash_table.html</a>
+</li>
+
+<li>Elisp: Association List<br />
+<a href="http://ergoemacs.org/emacs/elisp_association_list.html">http://ergoemacs.org/emacs/elisp_association_list.html</a>
+</li>
+
+<li>The mapcar Function (An Introduction to Programming in Emacs Lisp)<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/mapcar.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/mapcar.html</a>
+</li>
+
+<li>Anaphoric macro<br />
+<a href="https://en.wikipedia.org/wiki/Anaphoric_macro">https://en.wikipedia.org/wiki/Anaphoric_macro</a>
+</li>
+
+<li>Some Common Lisp Loop Macro Examples<br />
+<a href="https://www.youtube.com/watch?v=3yl8o6r_omw">https://www.youtube.com/watch?v=3yl8o6r_omw</a>
+</li>
+
+<li>A Guided Tour of Emacs<br />
+<a href="https://www.gnu.org/software/emacs/tour/">https://www.gnu.org/software/emacs/tour/</a>
+</li>
+
+<li>The Roots of Lisp<br />
+<a href="http://www.paulgraham.com/rootsoflisp.html">http://www.paulgraham.com/rootsoflisp.html</a>
+</li>
+
+<li>Evil (Emacs Wiki)<br />
+<a href="https://www.emacswiki.org/emacs/Evil">https://www.emacswiki.org/emacs/Evil</a>
+</li>
+
+<li>Evil (na GitHubu)<br />
+<a href="https://github.com/emacs-evil/evil">https://github.com/emacs-evil/evil</a>
+</li>
+
+<li>Evil (na stránkách repositáře MELPA)<br />
+<a href="https://melpa.org/#/evil">https://melpa.org/#/evil</a>
+</li>
+
+<li>Evil Mode: How I Switched From VIM to Emacs<br />
+<a href="https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html">https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html</a>
+</li>
+
+<li>GNU Emacs (home page)<br />
+<a href="https://www.gnu.org/software/emacs/">https://www.gnu.org/software/emacs/</a>
+</li>
+
+<li>GNU Emacs (texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs">http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs</a>
+</li>
+
+<li>An Introduction To Using GDB Under Emacs<br />
+<a href="http://tedlab.mit.edu/~dr/gdbintro.html">http://tedlab.mit.edu/~dr/gdbintro.html</a>
+</li>
+
+<li>An Introduction to Programming in Emacs Lisp<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html</a>
+</li>
+
+<li>27.6 Running Debuggers Under Emacs<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html">https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html</a>
+</li>
+
+<li>GdbMode<br />
+<a href="http://www.emacswiki.org/emacs/GdbMode">http://www.emacswiki.org/emacs/GdbMode</a>
+</li>
+
+<li>Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Emacs">https://en.wikipedia.org/wiki/Emacs</a>
+</li>
+
+<li>Emacs timeline<br />
+<a href="http://www.jwz.org/doc/emacs-timeline.html">http://www.jwz.org/doc/emacs-timeline.html</a>
+</li>
+
+<li>Emacs Text Editors Family<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily">http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse (část 2: vyhledávání a nahrazování textu)<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/</a>
+</li>
+
+<li>Emacs/Evil-mode - A basic reference to using evil mode in Emacs<br />
+<a href="http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet">http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet</a>
+</li>
+
+<li>From Vim to Emacs+Evil chaotic migration guide<br />
+<a href="https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/">https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/</a>
+</li>
+
+<li>Introduction to evil-mode {video)<br />
+<a href="https://www.youtube.com/watch?v=PeVQwYUxYEg">https://www.youtube.com/watch?v=PeVQwYUxYEg</a>
+</li>
+
+<li>EINE (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/EINE">http://www.emacswiki.org/emacs/EINE</a>
+</li>
+
+<li>EINE (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EINE">http://texteditors.org/cgi-bin/wiki.pl?EINE</a>
+</li>
+
+<li>ZWEI (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/ZWEI">http://www.emacswiki.org/emacs/ZWEI</a>
+</li>
+
+<li>ZWEI (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?ZWEI">http://texteditors.org/cgi-bin/wiki.pl?ZWEI</a>
+</li>
+
+<li>Zmacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Zmacs">https://en.wikipedia.org/wiki/Zmacs</a>
+</li>
+
+<li>Zmacs (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?Zmacs">http://texteditors.org/cgi-bin/wiki.pl?Zmacs</a>
+</li>
+
+<li>TecoEmacs (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/TecoEmacs">http://www.emacswiki.org/emacs/TecoEmacs</a>
+</li>
+
+<li>Micro Emacs<br />
+<a href="http://www.emacswiki.org/emacs/MicroEmacs">http://www.emacswiki.org/emacs/MicroEmacs</a>
+</li>
+
+<li>Micro Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/MicroEMACS">https://en.wikipedia.org/wiki/MicroEMACS</a>
+</li>
+
+<li>EmacsHistory<br />
+<a href="http://www.emacswiki.org/emacs/EmacsHistory">http://www.emacswiki.org/emacs/EmacsHistory</a>
+</li>
+
+<li>Seznam editorů s ovládáním podobným Emacsu či kompatibilních s příkazy Emacsu<br />
+<a href="http://www.finseth.com/emacs.html">http://www.finseth.com/emacs.html</a>
+</li>
+
+<li>evil-numbers<br />
+<a href="https://github.com/cofi/evil-numbers">https://github.com/cofi/evil-numbers</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (1.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (2.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (3): Nemiver<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (4): KDbg<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (5): ladění aplikací v editorech Emacs a Vim<br />
+<a href="https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/">https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/</a>
+</li>
+
+<li>Org mode<br />
+<a href="https://orgmode.org/">https://orgmode.org/</a>
+</li>
+
+<li>The Org Manual<br />
+<a href="https://orgmode.org/manual/index.html">https://orgmode.org/manual/index.html</a>
+</li>
+
+<li>Kakoune (modální textový editor)<br />
+<a href="http://kakoune.org/">http://kakoune.org/</a>
+</li>
+
+<li>Vim-style keybinding in Emacs/Evil-mode<br />
+<a href="https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8">https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8</a>
+</li>
+
+<li>Emacs - jak začít<br />
+<a href="http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit">http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit</a>
+</li>
+
+<li>Programovací jazyk LISP a LISP machines<br />
+<a href="https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/">https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/</a>
+</li>
+
+<li>Evil-surround<br />
+<a href="https://github.com/emacs-evil/evil-surround">https://github.com/emacs-evil/evil-surround</a>
+</li>
+
+<li>Spacemacs<br />
+<a href="http://spacemacs.org/">http://spacemacs.org/</a>
+</li>
+
+<li>Lisp: Common Lisp, Racket, Clojure, Emacs Lisp<br />
+<a href="http://hyperpolyglot.org/lisp">http://hyperpolyglot.org/lisp</a>
+</li>
+
+<li>Common Lisp, Scheme, Clojure, And Elisp Compared<br />
+<a href="http://irreal.org/blog/?p=725">http://irreal.org/blog/?p=725</a>
+</li>
+
+<li>Does Elisp Suck?<br />
+<a href="http://irreal.org/blog/?p=675">http://irreal.org/blog/?p=675</a>
+</li>
+
+<li>Emacs pro mírně pokročilé (9): Elisp<br />
+<a href="https://www.root.cz/clanky/emacs-elisp/">https://www.root.cz/clanky/emacs-elisp/</a>
+</li>
+
+<li>If I want to learn lisp, are emacs and elisp a good choice?<br />
+<a href="https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/">https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/</a>
+</li>
+
+<li>Clojure(Script) Interactive Development Environment that Rocks!<br />
+<a href="https://github.com/clojure-emacs/cider">https://github.com/clojure-emacs/cider</a>
+</li>
+
+<li>An Introduction to Emacs Lisp<br />
+<a href="https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html">https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html</a>
+</li>
+
+<li>Emergency Elisp<br />
+<a href="http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html">http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html</a>
+</li>
+
+<li>Racket<br />
+<a href="https://racket-lang.org/">https://racket-lang.org/</a>
+</li>
+
+<li>The Racket Manifesto<br />
+<a href="http://felleisen.org/matthias/manifesto/">http://felleisen.org/matthias/manifesto/</a>
+</li>
+
+<li>MIT replaces Scheme with Python<br />
+<a href="https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/">https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/</a>
+</li>
+
+<li>Adventures in Advanced Symbolic Programming<br />
+<a href="http://groups.csail.mit.edu/mac/users/gjs/6.945/">http://groups.csail.mit.edu/mac/users/gjs/6.945/</a>
+</li>
+
+<li>Why MIT Switched from Scheme to Python (2009)<br />
+<a href="https://news.ycombinator.com/item?id=14167453">https://news.ycombinator.com/item?id=14167453</a>
+</li>
+
+<li>Starodávná stránka XLispu<br />
+<a href="http://www.xlisp.org/">http://www.xlisp.org/</a>
+</li>
+
+<li>AutoLISP<br />
+<a href="https://en.wikipedia.org/wiki/AutoLISP">https://en.wikipedia.org/wiki/AutoLISP</a>
+</li>
+
+<li>Seriál PicoLisp: minimalistický a výkonný interpret Lispu<br />
+<a href="https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/">https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/</a>
+</li>
+
+<li>Common Lisp<br />
+<a href="https://common-lisp.net/">https://common-lisp.net/</a>
+</li>
+
+<li>Getting Going with Common Lisp<br />
+<a href="https://cliki.net/Getting%20Started">https://cliki.net/Getting%20Started</a>
+</li>
+
+<li>Online Tutorial (Common Lisp)<br />
+<a href="https://cliki.net/online%20tutorial">https://cliki.net/online%20tutorial</a>
+</li>
+
+<li>Guile Emacs<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacs">https://www.emacswiki.org/emacs/GuileEmacs</a>
+</li>
+
+<li>Guile Emacs History<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacsHistory">https://www.emacswiki.org/emacs/GuileEmacsHistory</a>
+</li>
+
+<li>Guile is a programming language<br />
+<a href="https://www.gnu.org/software/guile/">https://www.gnu.org/software/guile/</a>
+</li>
+
+<li>MIT Scheme<br />
+<a href="http://groups.csail.mit.edu/mac/projects/scheme/">http://groups.csail.mit.edu/mac/projects/scheme/</a>
+</li>
+
+<li>SIOD: Scheme in One Defun<br />
+<a href="http://people.delphiforums.com/gjc//siod.html">http://people.delphiforums.com/gjc//siod.html</a>
+</li>
+
+<li>CommonLispForEmacs<br />
+<a href="https://www.emacswiki.org/emacs/CommonLispForEmacs">https://www.emacswiki.org/emacs/CommonLispForEmacs</a>
+</li>
+
+<li>Elisp: print, princ, prin1, format, message<br />
+<a href="http://ergoemacs.org/emacs/elisp_printing.html">http://ergoemacs.org/emacs/elisp_printing.html</a>
+</li>
+
+<li>Special Forms in Lisp<br />
+<a href="http://www.nhplace.com/kent/Papers/Special-Forms.html">http://www.nhplace.com/kent/Papers/Special-Forms.html</a>
+</li>
+
+<li>Basic Building Blocks in LISP<br />
+<a href="https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm">https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm</a>
+</li>
+
+<li>Introduction to LISP - University of Pittsburgh<br />
+<a href="https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf">https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf</a>
+</li>
+
+<li>Why don't people use LISP<br />
+<a href="https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/">https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/</a>
+</li>
+
+<li>Structured program theorem<br />
+<a href="https://en.wikipedia.org/wiki/Structured_program_theorem">https://en.wikipedia.org/wiki/Structured_program_theorem</a>
+</li>
+
+<li>Clojure: API Documentation<br />
+<a href="https://clojure.org/api/api">https://clojure.org/api/api</a>
+</li>
+
+<li>Tutorial for the Common Lisp Loop Macro<br />
+<a href="http://www.ai.sri.com/pkarp/loop.html">http://www.ai.sri.com/pkarp/loop.html</a>
+</li>
+
+<li>Common Lisp's Loop Macro Examples for Beginners<br />
+<a href="http://www.unixuser.org/~euske/doc/cl/loop.html">http://www.unixuser.org/~euske/doc/cl/loop.html</a>
+</li>
+
+<li>A modern list api for Emacs. No 'cl required.<br />
+<a href="https://github.com/magnars/dash.el">https://github.com/magnars/dash.el</a>
+</li>
+
+<li>The LOOP Facility<br />
+<a href="http://www.lispworks.com/documentation/HyperSpec/Body/06_a.htm">http://www.lispworks.com/documentation/HyperSpec/Body/06_a.htm</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2018</small></p>
+</body>
+</html>
+
