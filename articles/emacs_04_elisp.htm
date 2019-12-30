@@ -1,0 +1,2068 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Úpravy Emacsu s Emacs Lisp: všemocné makro cl-loop a knihovna dash</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Úpravy Emacsu s Emacs Lisp: všemocné makro cl-loop a knihovna dash</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>V Common Lispu se používá makro <strong>loop</strong> sloužící pro konstrukci všech typů programových smyček. Toto makro používající vlastní doménově specifický jazyk je dostupné i v Emacs Lispu. Kromě popisu možností tohoto makra se zmíníme i o knihovně <strong>dash</strong>.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Různé varianty funkce <strong>print</strong></a></p>
+<p><a href="#k02">2. Malé zopakování z&nbsp;minula &ndash; smyčka implementovaná pomocí speciální formy <strong>while</strong></a></p>
+<p><a href="#k03">3. Využití makra <strong>cl-loop</strong> pro konstrukci různých forem programových smyček</a></p>
+<p><a href="#k04">4. Použití klauzulí <strong>while</strong> a <strong>until</strong></a></p>
+<p><a href="#k05">5. Počítané smyčky typu <strong>for</strong></a></p>
+<p><a href="#k06">6. Specifikace počáteční hodnoty počitadla smyčky</a></p>
+<p><a href="#k07">7. Specifikace kroku, s&nbsp;nímž se mění hodnota počitadla smyčky</a></p>
+<p><a href="#k08">8. Snižování hodnoty počitadla smyčky</a></p>
+<p><a href="#k09">9. Procházení prvky seznamu aneb smyčka typu <strong>for-each</strong></a></p>
+<p><a href="#k10">10. Rozdíl mezi formami <strong>for i in</strong> a <strong>for i on</strong></a></p>
+<p><a href="#k11">11. Přímá změna hodnoty prvků seznamu, přes nějž se iteruje</a></p>
+<p><a href="#k12">12. Klauzule <strong>append</strong></a></p>
+<p><a href="#k13">13. Klauzule pro automatický výpočet sumy, nalezení maximálního a minimálního prvku atd.</a></p>
+<p><a href="#k14">14. Smyčka vracející programátorem specifikované (naakumulované) hodnoty</a></p>
+<p><a href="#k15">15. Lokální proměnné použité uvnitř těla smyčky</a></p>
+<p><a href="#k16">16. Alternativní funkcionální přístup při zpracování sekvencí &ndash; použití knihovny <strong>dash</strong></a></p>
+<p><a href="#k17">17. Threading makra</a></p>
+<p><a href="#k18">18. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k19">19. Literatura</a></p>
+<p><a href="#k20">20. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Různé varianty funkce <strong>print</strong></h2>
+
+<p>Dnešní článek je věnován především popisu univerzální programové smyčky
+<strong>cl-loop</strong>, ovšem ještě předtím se musíme alespoň ve stručnosti
+seznámit s&nbsp;různými variantami funkce <strong>print</strong>, protože tyto
+varianty budeme používat v&nbsp;demonstračních příkladech. V&nbsp;následující
+tabulce je vypsána většina funkcí, které lze použít pro zobrazení nějakých
+hodnot uživateli. Dnes využijeme zejména první tři funkce:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>print</td><td>tisk hodnoty takovým způsobem, aby ji bylo možné načíst zpět pomocí <strong>read</strong></td></tr>
+<tr><td>prin1</td><td>dtto, ovšem bez konce řádku</td></tr>
+<tr><td>princ</td><td>tisk hodnoty tak, aby byla dobře čitelná uživatelem (nekompatibilní s&nbsp;<strong>read</strong>)</td></tr>
+<tr><td>terpri</td><td>odřádkování (<i>terminate print</i>)</td></tr>
+<tr><td>message</td><td>zobrazení zprávy v&nbsp;bufferu (pro zprávy)</td></tr>
+<tr><td>insert</td><td>vložení zprávy do bufferu (jakoby byla zpráva napsána na klávesnici)</td></tr>
+</table>
+
+<p>Vyzkoušení vlastností prvních čtyř funkcí z&nbsp;předchozí tabulky:</p>
+
+<pre>
+(print 42)
+(print "Hello")
+(print :world)
+(print '(1 2 3))
+&nbsp;
+(print "-----------------------------------------")
+&nbsp;
+(prin1 42)
+(terpri)
+(prin1 "Hello")
+(terpri)
+(prin1 :world)
+(terpri)
+(prin1 '(1 2 3))
+(terpri)
+&nbsp;
+(print "-----------------------------------------")
+&nbsp;
+(princ 42)
+(terpri)
+(princ "Hello")
+(terpri)
+(princ :world)
+(terpri)
+(princ '(1 2 3))
+(terpri)
+</pre>
+
+<p>Na standardním výstupu by se měl objevit následující text. Povšimněte si
+především různého způsobu zobrazení řetězců:</p>
+
+<pre>
+42
+&nbsp;
+"Hello"
+&nbsp;
+:world
+&nbsp;
+(1 2 3)
+&nbsp;
+"-----------------------------------------"
+42
+"Hello"
+:world
+(1 2 3)
+&nbsp;
+"-----------------------------------------"
+42
+Hello
+:world
+(1 2 3)
+</pre>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Malé zopakování z&nbsp;minula &ndash; smyčka implementovaná pomocí speciální formy <strong>while</strong></h2>
+
+<p>Vzhledem k&nbsp;tomu, že převážná část dnešního článku bude věnována různým
+formám programových smyček, zopakujeme si (velmi krátce) informace, které již
+známe z&nbsp;předchozích částí. Emacs Lisp, podobně jako jazyk Clojure a
+některé další dialekty Lispu, obsahuje ve své standardní knihovně jen jediný
+typ programové smyčky, a to konkrétně smyčku typu <a
+href="http://clojure.github.io/clojure/clojure.core-api.html#clojure.core/while">while</a>.
+Chování této smyčky je známé z&nbsp;klasických strukturovaných jazyků, takže
+jen ve stručnosti:</p>
+
+<pre>
+(setq i 10)
+&nbsp;
+(<strong>while</strong> (&gt; i 0)
+  (princ (format "i = %d\n" i))
+  (setq i (- i 1)))
+</pre>
+
+<p>S&nbsp;výsledkem:</p>
+
+<pre>
+i = 10
+i = 9
+i = 8
+i = 7
+i = 6
+i = 5
+i = 4
+i = 3
+i = 2
+i = 1
+</pre>
+
+<p>Počítání opačným směrem:</p>
+
+<pre>
+(setq i 0)
+&nbsp;
+(<strong>while</strong> (&lt; i 10)
+  (princ (format "i = %d\n" i))
+  (setq i (1+ i)))
+</pre>
+
+<p>S&nbsp;výsledkem:</p>
+
+<pre>
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+</pre>
+
+<p>Speciální forma <strong>while</strong> na první pohled vypadá jednoduše
+použitelná. Současně se (z&nbsp;pohledu teorie) vlastně jedná o jediný typ
+programové smyčky, kterou je zapotřebí implementovat, protože všechny ostatní
+typy smyček je možné z&nbsp;<strong>while</strong> odvodit (viz též <a
+href="https://en.wikipedia.org/wiki/Structured_program_theorem">Structured
+program theorem</a>). Ovšem z&nbsp;hlediska praktického použití je patrné, že
+se <strong>while</strong> používá poměrně složitě, protože je ji většinou
+zapotřebí doplnit o další pomocné konstrukce; v&nbsp;našem případě o počitadlo
+smyčky. Z&nbsp;tohoto důvodu byly do různých dialektů LISPu postupně přidávány
+i další typy smyček, přičemž nejvíce univerzální je smyčka
+<strong>loop</strong> realizovaná v&nbsp;Common Lispu. A právě možnostmi
+nabízenými touto smyčkou se budeme zabývat v&nbsp;navazujících kapitolách.</p>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Využití makra <strong>cl-loop</strong> pro konstrukci různých forem programových smyček</h2>
+
+<p><div class="rs-tip-major">Poznámka na začátek: v&nbsp;Common Lispu se
+skutečně setkáme s&nbsp;makrem pojmenovaným <strong>loop</strong>. V&nbsp;Emacs
+Lispu je situace nepatrně odlišná, protože se toto makro importuje
+z&nbsp;knihovny nazvané <strong>cl-lib</strong>, kde prefix &bdquo;cl&ldquo;
+samozřejmě znamená &bdquo;Common Lisp&ldquo;. Mj.&nbsp;i z&nbsp;tohoto důvodu
+se v&nbsp;Emacs Lispu toto makro jmenuje &bdquo;cl-loop&ldquo;:</div></p>
+
+<pre>
+(require 'cl-lib)
+</pre>
+
+<p>Smyčka <strong>loop</strong> ve formě, v&nbsp;jaké byla navržena
+v&nbsp;Common Lispu, programátorům nabízí svůj vlastní doménově specifický
+jazyk (DSL). Z&nbsp;dalších demonstračních příkladů bude patrné, že tento jazyk
+používá styl zápisu, který je kombinací klasických strukturovaných jazyků
+(Algol, Pascal, C) a možností LISPu. Je tomu tak z&nbsp;toho důvodu, aby bylo
+přímo ze zápisu smyčky, typicky již po přečtení prvního řádku, patrné, jak bude
+smyčka prováděna. K&nbsp;tomuto účelu se uvnitř smyčky <strong>loop</strong>
+používají symboly <strong>for</strong>, <strong>repeat</strong>,
+<strong>in</strong>, <strong>finally</strong> atd., které mají svůj speciální
+význam, ale pouze uvnitř samotné formy <strong>loop</strong>.</p>
+
+<p><div class="rs-tip-major">Poznámka: v&nbsp;Common Lispu je možné tyto
+symboly zapisovat i ve formě keywordů, tj.&nbsp;s&nbsp;dvojtečkami na začátku,
+což může být čitelnější.</div></p>
+
+<p>Podívejme se nyní na pravděpodobně nejjednodušší prakticky použitelný
+příklad využívající smyčku <strong>cl-loop</strong>, v&nbsp;níž bude použita
+dvojice symbolů se speciálním významem, o nichž jsme se zmínili
+v&nbsp;předchozím odstavci. Konkrétně budeme implementovat programovou smyčku,
+jejíž tělo se bude n-krát opakovat. K&nbsp;zápisu této varianty smyčky nám
+pomohou dva symboly se jmény <strong>repeat</strong> a <strong>do</strong>.
+Povšimněte si, že zápis smyčky vypadá prakticky stejně, jako by tomu bylo
+v&nbsp;některém z&nbsp;klasických strukturovaných jazyků (samozřejmě pokud si
+odmyslíme kulaté závorky, do kterých toto makro vkládáme a které jsou
+v&nbsp;Lispu povinné):</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>repeat</strong> počet-opakování <strong>do</strong> ...)
+</pre>
+
+<p>Podívejme se na praktický příklad (prozatím velmi jednoduchý):</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(<strong>cl-loop</strong> <strong>repeat</strong> 10 <strong>do</strong>
+         (princ "Hello world!\n"))
+</pre>
+
+<p>Makro <strong>cl-loop</strong> zavolané tímto způsobem nevrací žádnou
+hodnotu, takže se předpokládá, že smyčka vykoná svoji činnost jen díky tomu, že
+některá funkce volaná při každé iteraci bude mít vedlejší efekt, například že
+vypíše zprávu na obrazovku atd., což je ostatně přesně náš případ. Po spuštění
+výše popsané smyčky se na výstupu skutečně zobrazí deset totožných zpráv:</p>
+
+<pre>
+Hello world!
+Hello world!
+Hello world!
+Hello world!
+Hello world!
+Hello world!
+Hello world!
+Hello world!
+Hello world!
+Hello world!
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: povšimněte si, že při použití
+<strong>loop-repeat-do</strong> vlastně nemáme k&nbsp;dispozici počitadlo
+smyčky. V&nbsp;případě, že je nutné počitadlo využít, je výhodnější použít
+další varianty smyčky, například <strong>loop-for</strong>, které budou popsány
+<a href="#k06">v&nbsp;šesté</a>, <a href="k07">sedmé</a> a <a href="#k08">osmé
+kapitole</a>.</div></p>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Použití klauzulí <strong>while</strong> a <strong>until</strong></h2>
+
+<p>Ve smyčce <strong>cl-loop</strong> je možné použít i klauzule
+<strong>while</strong> a <strong>until</strong>, za nimiž se zapisuje podmínka.
+Ta je od těla smyčky oddělena speciálním symbolem <strong>do</strong>, takže
+zápisy vypadají následovně:</p>
+
+<p>Vyhodnocení podmínky na začátku každé iterace, tělo smyčky se zavolá, pokud
+je podmínka splněna:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>while</strong> podmínka <strong>do</strong> ...)
+</pre>
+
+<p>Vyhodnocení podmínky na začátku každé iterace, tělo smyčky se zavolá, pokud
+podmínka splněna naopak <strong>není</strong> (po splnění podmínky se smyčka
+opustí):</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>until</strong> podmínka <strong>do</strong> ...)
+</pre>
+
+<p>Demonstrační příklad bude velmi jednoduchý, protože v&nbsp;něm použijeme
+jedinou řídicí proměnnou <strong>i</strong>, kterou budeme nejprve zmenšovat o
+jedničku a poté v&nbsp;druhé smyčce naopak zvyšovat až do chvíle, kdy překročí
+hodnotu 10:</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(setq i 10)
+&nbsp;
+(<strong>cl-loop</strong> while (&gt; i 0) do
+         (princ (format "i = %d\n" i))
+         (setq i (- i 1)))
+&nbsp;
+(<strong>cl-loop</strong> until (&gt; i 10) do
+         (princ (format "i = %d\n" i))
+         (setq i (+ i 1)))
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+i = 10
+i = 9
+i = 8
+i = 7
+i = 6
+i = 5
+i = 4
+i = 3
+i = 2
+i = 1
+i = 0
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+i = 10
+</pre>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Počítané smyčky typu <strong>for</strong></h2>
+
+<p>Makro <strong>cl-loop</strong> samozřejmě podporuje i tvorbu klasických
+programových smyček, v&nbsp;nichž se postupně mění hodnota počitadla. Základní
+forma této smyčky vypadá následovně:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>to</strong> 10 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledek ukazuje, že se počítá od nuly a končí se až po dosažení koncové
+hodnoty (ne o jedničku dříve):</p>
+
+<pre>
+i = 0
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+i = 10
+</pre>
+
+<p>Alternativně můžeme v&nbsp;tomto případě namísto symbolu <strong>to</strong>
+použít spíše <strong>upto</strong>:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upto</strong> 10 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Se shodným výsledkem:</p>
+
+<pre>
+i = 0
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+i = 10
+</pre>
+
+<p>Mnohdy potřebujeme, aby horní meze nebylo dosaženo a smyčka skončila těsně
+předtím. Namísto komplikovaných výpočtů použijte <strong>below</strong> a
+nikoli <strong>to</strong> či <strong>upto</strong>:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>below</strong> 10 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Skutečně se počítá jen do 9 a nikoli 10:</p>
+
+<pre>
+i = 0
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+</pre>
+
+<p>Užitečná je možnost přidání další (libovolné) podmínky, která pro počitadlo
+musí platit. Jsou přeskočeny ty iterace, kdy podmínka není splněna (ovšem
+smyčka není ukončena):</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>below</strong> 10 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledkem je sekvence sudých čísel:</p>
+
+<pre>
+i = 0
+i = 2
+i = 4
+i = 6
+i = 8
+</pre>
+
+<p>Popř.:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>below</strong> 10 <strong>when</strong> (cl-oddp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledkem je sekvence čísel lichých:</p>
+
+<pre>
+i = 1
+i = 3
+i = 5
+i = 7
+i = 9
+</pre>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Specifikace počáteční hodnoty počitadla smyčky</h2>
+
+<p>Samozřejmě je možné v&nbsp;případě potřeby specifikovat i počáteční hodnotu
+počitadla; tj.&nbsp;nemusí se vždy začínat na nule:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 1 <strong>to</strong> 10 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+i = 10
+</pre>
+
+<p>Totožná smyčka, ovšem s&nbsp;jiným symbolem (lépe čitelným):</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 1 <strong>upto</strong> 10 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledek je stejný:</p>
+
+<pre>
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+i = 10
+</pre>
+
+<p>Při počítání směrem nahoru lze namísto <strong>from</strong> použít symbol
+<strong>upfrom</strong> se shodným významem:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 1 <strong>upto</strong> 10 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+i = 10
+</pre>
+
+<p>Kombinace <strong>from</strong> a <strong>below</strong>:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 1 <strong>below</strong> 10 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledek je kratší o poslední iteraci:</p>
+
+<pre>
+i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+</pre>
+
+<p>Další kombinace již obsahují klauzuli <strong>when</strong>:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 1 <strong>to</strong> 10 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+i = 2
+i = 4
+i = 6
+i = 8
+i = 10
+</pre>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 1 <strong>upto</strong> 10 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+i = 2
+i = 4
+i = 6
+i = 8
+i = 10
+</pre>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 1 <strong>upto</strong> 10 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+i = 2
+i = 4
+i = 6
+i = 8
+i = 10
+</pre>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 1 <strong>below</strong> 10 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+i = 2
+i = 4
+i = 6
+i = 8
+</pre>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Specifikace kroku, s&nbsp;nímž se mění hodnota počitadla smyčky</h2>
+
+<p>Další příklad si již ukážeme v&nbsp;celku. Používá se v&nbsp;něm symbol
+<strong>by</strong>, za nímž se udává krok, tj.&nbsp;o jakou hodnotu se bude
+počitadlo měnit. Výchozí hodnotou je pochopitelně jednička:</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 0 <strong>to</strong> 30 <strong>by</strong> 3 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 0 <strong>upto</strong> 30 <strong>by</strong> 3 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 0 <strong>upto</strong> 30 <strong>by</strong> 3 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 0 <strong>below</strong> 30 <strong>by</strong> 3 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "===========================\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 0 <strong>to</strong> 30 <strong>by</strong> 3 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 0 <strong>upto</strong> 30 <strong>by</strong> 3 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 0 <strong>upto</strong> 30 <strong>by</strong> 3 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 0 <strong>below</strong> 30 <strong>by</strong> 3 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+</pre>
+
+<p>Podívejme se nyní na výsledky produkované tímto příkladem:</p>
+
+<pre>
+i = 0
+i = 3
+i = 6
+i = 9
+i = 12
+i = 15
+i = 18
+i = 21
+i = 24
+i = 27
+i = 30
+---------------------------
+i = 0
+i = 3
+i = 6
+i = 9
+i = 12
+i = 15
+i = 18
+i = 21
+i = 24
+i = 27
+i = 30
+---------------------------
+i = 0
+i = 3
+i = 6
+i = 9
+i = 12
+i = 15
+i = 18
+i = 21
+i = 24
+i = 27
+i = 30
+---------------------------
+i = 0
+i = 3
+i = 6
+i = 9
+i = 12
+i = 15
+i = 18
+i = 21
+i = 24
+i = 27
+===========================
+i = 0
+i = 6
+i = 12
+i = 18
+i = 24
+i = 30
+---------------------------
+i = 0
+i = 6
+i = 12
+i = 18
+i = 24
+i = 30
+---------------------------
+i = 0
+i = 6
+i = 12
+i = 18
+i = 24
+i = 30
+---------------------------
+i = 0
+i = 6
+i = 12
+i = 18
+i = 24
+</pre>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Snižování hodnoty počitadla smyčky</h2>
+
+<p>Prozatím jsme v&nbsp;předchozích smyčkách počitadlo vždy zvyšovali, ať již o
+jedničku nebo o jinou hodnotu. Počítat je však možné i opačným směrem.
+V&nbsp;tomto případě však nestačí za <strong>by</strong> zadat záporné číslo!
+Je nutné použít jiný zápis, a to s&nbsp;využitím symbolů
+<strong>downto</strong> nebo <strong>above</strong>. Opět si ukažme některé
+povolené kombinace (pozor na rozdílné chování <strong>downto</strong> a
+<strong>above</strong>):</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 10 <strong>downto</strong> 1 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 10 <strong>above</strong> 1 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 10 <strong>above</strong> 1 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 10 <strong>above</strong> 1 <strong>by</strong> 2 <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "===========================\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 10 <strong>downto</strong> 1 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>from</strong> 10 <strong>above</strong> 1 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 10 <strong>above</strong> 1 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 10 <strong>above</strong> 1 <strong>by</strong> 2 <strong>when</strong> (cl-evenp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>upfrom</strong> 10 <strong>above</strong> 1 <strong>by</strong> 2 <strong>when</strong> (cl-oddp i) <strong>do</strong>
+         (princ (format "i = %d\n" i)))
+&nbsp;
+(princ "---------------------------\n")
+</pre>
+
+<p>Po spuštění budou výsledky následující:</p>
+
+<pre>
+i = 10
+i = 9
+i = 8
+i = 7
+i = 6
+i = 5
+i = 4
+i = 3
+i = 2
+i = 1
+---------------------------
+i = 10
+i = 9
+i = 8
+i = 7
+i = 6
+i = 5
+i = 4
+i = 3
+i = 2
+---------------------------
+i = 10
+i = 9
+i = 8
+i = 7
+i = 6
+i = 5
+i = 4
+i = 3
+i = 2
+---------------------------
+i = 10
+i = 8
+i = 6
+i = 4
+i = 2
+===========================
+i = 10
+i = 8
+i = 6
+i = 4
+i = 2
+---------------------------
+i = 10
+i = 8
+i = 6
+i = 4
+i = 2
+---------------------------
+i = 10
+i = 8
+i = 6
+i = 4
+i = 2
+---------------------------
+i = 10
+i = 8
+i = 6
+i = 4
+i = 2
+---------------------------
+---------------------------
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: poslední smyčka skutečně neproběhne ani
+jednou (proč?).</div></p>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Procházení prvky seznamu aneb smyčka typu <strong>for-each</strong></h2>
+
+<p>V&nbsp;případě, že se má procházet všemi prvky seznamu (nebo vektoru), lze
+použít klauzuli <strong>for</strong> <strong>in</strong>, která používá
+následující styl zápisu:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> prvek <strong>in</strong> seznam
+  ...
+  ...
+  ...
+  tělo smyčky
+  ...
+  ...
+  ...)
+</pre>
+
+<p>Vidíme, že se tento zápis opět do značné míry podobá syntaxi, s&nbsp;níž se
+setkáme v&nbsp;běžných programovacích jazycích. Typicky se tato smyčka používá
+ve chvíli, kdy se v&nbsp;ní volá funkce s&nbsp;vedlejším efektem. Pokud tomu
+tak není a je nutné ze smyčky vrátit výsledek aplikace nějaké funkce na prvky
+seznamu, používá se klauzule <strong>collect</strong>, a to přibližně tímto
+způsobem:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> prvek <strong>in</strong> seznam
+    collect prvek)
+</pre>
+
+<p>V&nbsp;následujícím příkladu je tato varianta smyčky použita, i když se ve
+skutečnosti dá nahradit funkcí <strong>mapcar</strong>:</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(setq lst (number-sequence 0 10))
+&nbsp;
+(print
+    (<strong>cl-loop</strong> <strong>for</strong> i <strong>in</strong> lst
+             collect i))
+&nbsp;
+(print
+    (<strong>cl-loop</strong> <strong>for</strong> i <strong>in</strong> lst
+             collect (* i i)))
+&nbsp;
+&nbsp;
+(defun factorial (n)
+  (setq accumulator 1)
+  (dolist (value (number-sequence 1 n))
+    (setq accumulator (* accumulator value)))
+  accumulator)
+&nbsp;
+(print
+    (<strong>cl-loop</strong> <strong>for</strong> i <strong>in</strong> lst
+             collect (factorial i)))
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+(0 1 2 3 4 5 6 7 8 9 10)
+&nbsp;
+(0 1 4 9 16 25 36 49 64 81 100)
+&nbsp;
+(1 1 2 6 24 120 720 5040 40320 362880 3628800)
+</pre>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Rozdíl mezi formami <strong>for i in</strong> a <strong>for i on</strong></h2>
+
+<p>Existuje ještě jedna varianta smyčky <strong>for-each</strong>, ovšem tato
+varianta používá zápis se symbolem <strong>on</strong> a nikoli
+<strong>in</strong>:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> prvek <strong>on</strong> seznam
+    collect prvek)
+</pre>
+
+<p>Tato varianta prochází seznamem odlišně &ndash; v&nbsp;první iteraci se do
+řídicí proměnné smyčky vloží celý seznam, ve druhé iteraci seznam bez prvního
+prvku atd. atd.:</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(setq lst (number-sequence 0 10))
+&nbsp;
+(setq result
+    (<strong>cl-loop</strong> <strong>for</strong> i <strong>on</strong> lst
+             collect i))
+&nbsp;
+(dolist (item result)
+  (print item))
+</pre>
+
+<p>Výsledek nyní bude značně odlišný &ndash; bude se jednat o seznam
+seznamů:</p>
+
+<pre>
+(0 1 2 3 4 5 6 7 8 9 10)
+&nbsp;
+(1 2 3 4 5 6 7 8 9 10)
+&nbsp;
+(2 3 4 5 6 7 8 9 10)
+&nbsp;
+(3 4 5 6 7 8 9 10)
+&nbsp;
+(4 5 6 7 8 9 10)
+&nbsp;
+(5 6 7 8 9 10)
+&nbsp;
+(6 7 8 9 10)
+&nbsp;
+(7 8 9 10)
+&nbsp;
+(8 9 10)
+&nbsp;
+(9 10)
+&nbsp;
+(10)
+</pre>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Přímá změna hodnoty prvků seznamu, přes nějž se iteruje</h2>
+
+<p>Nyní se dostáváme do oblasti, v&nbsp;níž se vlastnosti makra
+<strong>cl-loop</strong> již prakticky ztotožnily s&nbsp;možnostmi
+nefunkcionálních jazyků, se všemi výhodami a nevýhodami, které tento přístup
+přináší. V&nbsp;některých situacích je totiž vhodné, aby programová smyčka
+přímo měnila hodnoty seznamu (nebo pole), jehož prvky se ve smyčce prochází. I
+to je možné, a to díky následující konstrukci:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> prvek <strong>in-ref</strong> seznam <strong>do</strong>
+  ...
+  ...
+  ...
+  tělo smyčky
+  ...
+  ...
+  ...)
+</pre>
+
+<p>Povšimněte si rozdílu oproti předchozím smyčkám &ndash; namísto speciálního
+symbolu <strong>in</strong> je použit symbol <strong>in-ref</strong>. Díky
+použití tohoto symbolu se v&nbsp;každé iteraci získá reference na prvek
+procházeného seznamu, nikoli hodnota. Této vlastnosti můžeme využít například
+pro zvýšení hodnoty prvku v&nbsp;seznamu o jedničku pomocí funkce
+<strong>cl-incf</strong>:</p>
+
+<pre>
+(<strong>cl-loop</strong> <strong>for</strong> i <strong>in-ref</strong> lst <strong>do</strong>
+         (<strong>cl-incf</strong> i)))
+</pre>
+
+<p>Po zavolání této smyčky bude původní seznam <strong>lst</strong> obsahovat
+nové hodnoty (o jedničku zvýšené). Podívejme se nyní na demonstrační příklad,
+v&nbsp;němž bude použit právě tento typ smyčky, to hned dvakrát. V&nbsp;první
+smyčce zvýšíme hodnotu prvků původního seznamu o jedničku, ve smyčce druhé pak
+prvky vynulujeme:</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(setq lst (number-sequence 0 10))
+&nbsp;
+(print lst)
+&nbsp;
+(print
+    (<strong>cl-loop</strong> <strong>for</strong> i in-ref lst <strong>do</strong>
+             (cl-incf i)))
+&nbsp;
+(print lst)
+&nbsp;
+(<strong>cl-loop</strong> <strong>for</strong> i in-ref lst <strong>do</strong>
+         (setf i 0))
+&nbsp;
+(print lst)
+</pre>
+
+<p>Po spuštění se na výstupu objeví následující řádky:</p>
+
+<pre>
+(0 1 2 3 4 5 6 7 8 9 10)
+&nbsp;
+nil
+&nbsp;
+(1 2 3 4 5 6 7 8 9 10 11)
+&nbsp;
+(0 0 0 0 0 0 0 0 0 0 0)
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: <strong>nil</strong> se zobrazí proto,
+že smyčka nevrací žádnou hodnotu.</div></p>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Klauzule <strong>append</strong></h2>
+
+<p>V&nbsp;předchozích příkladech jsme pro získání výsledné hodnoty smyčky
+používali klauzuli <strong>collect</strong>. Použít je možné i klauzuli
+<strong>append</strong>, která pracuje podobně, ale pokud této klauzuli předáme
+seznam, budou všechny jeho prvky přidány do výsledného seznamu (každý zvlášť).
+Můžeme tím tedy nahradit operaci <i>flatten</i>:</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(setq letters '((alfa beta) () (gama delta) (omega) ()))
+&nbsp;
+(setq result
+  (<strong>cl-loop</strong> <strong>for</strong> i <strong>in</strong> letters
+           append i))
+&nbsp;
+(dolist (item result)
+  (print item))
+</pre>
+
+<pre>
+alfa
+&nbsp;
+beta
+&nbsp;
+gama
+&nbsp;
+delta
+&nbsp;
+omega
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Klauzule pro automatický výpočet sumy, nalezení maximálního a minimálního prvku atd.</h2>
+
+<p>Podívejme se ještě na některé složitější konstrukce, které dokážeme
+s&nbsp;makrem <strong>cl-loop</strong> vytvořit. Poměrně často se setkáme se
+situací, kdy je nutné vypočítat sumu všech prvků nějakého seznamu nebo vektoru.
+To lze provést několika způsoby (<strong>reduce</strong> atd.), ovšem při
+použití smyčky <strong>cl-loop</strong> lze využít klauzuli
+<strong>sum</strong> pro akumulaci výsledků:</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(setq lst (number-sequence 0 10))
+&nbsp;
+(setq result
+    (<strong>cl-loop</strong> <strong>for</strong> i <strong>in</strong> lst
+             <strong>sum</strong> i))
+&nbsp;
+(princ (format "Result: %d" result))
+</pre>
+
+<p>Předchozí zápis vracel implicitně jedinou hodnotu ze smyčky, a to sumu
+prvků. Toto chování lze popsat i explicitně s&nbsp;využitím klauzule
+<strong>finally</strong>, do níž zapíšeme příkaz, který se má vykonat při
+ukončování smyčky. Povšimněte si, že zde používáme lokální proměnnou
+<strong>total</strong> (lze ji pojmenovat různě):</p>
+
+<pre>
+(setq result
+    (<strong>cl-loop</strong> <strong>for</strong> i <strong>in</strong> lst
+             <strong>sum</strong> i <strong>into</strong> total
+             <strong>finally return</strong> total))
+&nbsp;
+(princ (format "Result: %d" result))
+</pre>
+
+<p>Výsledkem bude v&nbsp;obou případech:</p>
+
+<pre>
+Result: 55
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: právě na těchto příkladech asi začíná
+být viditelná síla doménově specifického jazyka makra
+<strong>cl-loop</strong>.</div></p>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Smyčka vracející programátorem specifikované (naakumulované) hodnoty</h2>
+
+<p>Předchozí příklad je možné ještě více &bdquo;vyšperkovat&ldquo;, například
+vypočítat počet všech prvků, jejich součet, maximální hodnotu a minimální
+hodnotu. To vše v&nbsp;jediné smyčce a bez použití podmínek. Povšimněte si
+způsobu, jak ze smyčky vrátit více hodnot:</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(setq lst (number-sequence 0 10))
+&nbsp;
+(setq result
+    (<strong>cl-loop</strong> <strong>for</strong> i <strong>in</strong> lst
+             <strong>count</strong> i <strong>into</strong> counter
+             <strong>sum</strong> i <strong>into</strong> total
+             <strong>maximize</strong> i <strong>into</strong> max-value
+             <strong>minimize</strong> i <strong>into</strong> min-value
+             <strong>finally return</strong> (list min-value max-value total counter)))
+&nbsp;
+(princ (format "Min value %d\n" (nth 0 result)))
+(princ (format "Max value %d\n" (nth 1 result)))
+(princ (format "Sum value %d\n" (nth 2 result)))
+(princ (format "Values %d\n" (nth 3 result)))
+</pre>
+
+<p>Výsledky vypočtené předchozím příkladem:</p>
+
+<pre>
+Min value 0
+Max value 10
+Sum value 55
+Values 11
+</pre>
+
+<p>Zcela stejně můžeme postupovat při analýze generátoru náhodných čísel.
+Povšimněte si, že v&nbsp;klauzuli <strong>finally</strong> pochopitelně můžeme
+volat nějakou funkci, zde dělení (výpočet průměru):</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(setq rnd (<strong>cl-loop</strong> repeat 1000
+                   collect (random 10000)))
+&nbsp;
+&nbsp;
+(setq result
+    (<strong>cl-loop</strong> <strong>for</strong> x <strong>in</strong> rnd
+             <strong>count</strong> x <strong>into</strong> counter
+             <strong>sum</strong> x <strong>into</strong> total
+             <strong>maximize</strong> x <strong>into</strong> max-value
+             <strong>minimize</strong> x <strong>into</strong> min-value
+             <strong>finally return</strong> (list min-value max-value total <strong>(/ total counter)</strong> counter)))
+&nbsp;
+&nbsp;
+(princ (format "Min value %d\n" (nth 0 result)))
+(princ (format "Max value %d\n" (nth 1 result)))
+(princ (format "Sum value %d\n" (nth 2 result)))
+(princ (format "Avg value %d\n" (nth 3 result)))
+(princ (format "Values %d\n" (nth 4 result)))
+</pre>
+
+<p>Výsledky (mohou se pochopitelně lišit):</p>
+
+<pre>
+Min value 0
+Max value 9990
+Sum value 4992707
+Avg value 4992
+Values 1000
+</pre>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Lokální proměnné použité uvnitř těla smyčky</h2>
+
+<p>V&nbsp;posledním příkladu s&nbsp;makrem <strong>cl-loop</strong> je ukázáno,
+že uvnitř programové smyčky je možné v&nbsp;případě potřeby použít lokální
+proměnné. Tato smyčka slouží k&nbsp;vyhledání odmocniny nějaké vstupní hodnoty,
+popř.&nbsp;celého čísla, které je této odmocnině nejblíže. Povšimněte si
+způsobu zápisu koncové podmínky pomocí <strong>until</strong> (ta se ovšem
+kombinuje s&nbsp;<strong>from</strong> <strong>to</strong>, takže se nikdy
+nebude jednat o nekonečnou smyčku):</p>
+
+<pre>
+(require 'cl-lib)
+&nbsp;
+(defun find-sqrt
+  (value)
+  (<strong>cl-loop</strong> <strong>for</strong> x <strong>from</strong> 1 <strong>to</strong> 200
+           <strong>for</strong> square = (* x x)
+           <strong>until</strong> (&gt;= square value)
+           <strong>finally return</strong> x))
+&nbsp;
+(princ (format "Sqrt of %d = %d\n" 1764 (find-sqrt 1764)))
+</pre>
+
+<p>Výsledek předchozího příkladu:</p>
+
+<pre>
+Sqrt of 1764 = 42
+</pre>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Alternativní funkcionální přístup při zpracování sekvencí &ndash; použití knihovny <strong>dash</strong></h2>
+
+<p>V&nbsp;samotném závěru dnešního článku se zmíníme o zajímavé knihovně
+nazvané <strong>dash</strong>, jejíž zdrojové kódy je možné nalézt na GitHubu,
+konkrétně na adrese <a
+href="https://github.com/magnars/dash.el">https://github.com/magnars/dash.el</a>.
+Makra a funkce, které jsou touto knihovnou nabízeny, jsou inspirovány
+standardní knihovnou programovacího jazyka <a
+href="https://clojure.org/">Clojure</a>, zejména funkcemi pro funkcionálně
+pojaté zpracování různých typů sekvencí (filtrace, redukce, aplikace funkce na
+prvky sekvence, rozdělení sekvence atd). To ovšem není vše, protože knihovna
+<strong>dash</strong> obsahuje i takzvaná threading makra, která mohou být
+velmi užitečná a navíc mohou zvýšit čitelnost zdrojových kódů. Při použití
+threading maker je možné zredukovat počet kulatých závorek, ovšem mnohem
+důležitější je fakt, že sekvence zápisu funkcí v&nbsp;programovém kódu bude
+odpovídat jejich volání (ve standardním Lispu je to vlastně naopak). Dnes se
+seznámíme jen s&nbsp;nejzákladnějšími funkcemi a makry poskytovanými touto
+knihovnou, její další možnosti budou popsány v&nbsp;samostatném článku.</p>
+
+<p><div class="rs-tip-major">Poznámka: jméno této knihovny naznačuje, že
+všechny funkce a makra, která v&nbsp;ní nalezneme, začínají znakem
+&bdquo;-&ldquo; nebo dvojicí znaků &bdquo;--&ldquo;. Možná se jedná o narážku
+na knihovnu <a
+href="https://www.root.cz/clanky/underscore-aneb-dalsi-knihovna-pro-funkcionalni-programovani-v-javascriptu/">Underscore</a>,
+která taktéž vývojářům nabízí funkcionální prvky, ovšem nikoli do jazyka Emacs
+Lisp, ale do JavaScriptu.</div></p>
+
+<p>Nejdříve si na několika screenshotech ukážeme, jakým způsobem se knihovna
+<strong>dash</strong> instaluje. Nebude to nic těžkého, pouze stačí mít povolen
+repositář <strong>Melpa</strong>, což jsme si již ukázali <a
+href="https://www.root.cz/clanky/evil-kombinace-editacnich-prikazu-vimu-a-sily-emacsu/#k04">v&nbsp;článku
+o pluginu Evil</a>:</p>
+
+<img src="https://i.iinfo.cz/images/516/emacs4-1.png" class="image-338652" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 1: Zadáme příkaz <strong>M-x list-packages</strong>.</i></p>
+
+<img src="https://i.iinfo.cz/images/516/emacs4-2.png" class="image-338653" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 2: Nalezneme balíček s&nbsp;knihovnou
+<strong>dash</strong>.</i></p>
+
+<img src="https://i.iinfo.cz/images/516/emacs4-3.png" class="image-338654" alt="&#160;" width="754" height="741" />
+<p><i>Obrázek 3: Provedeme instalaci (tlačítko Install).</i></p>
+
+<p>Do <strong>.emacs</strong> doplníme:</p>
+
+<pre>
+(require 'dash)
+</pre>
+
+<p>Podívejme se nyní na některé základní možnosti, které programátorům knihovna
+<strong>dash</strong> nabízí. Základní funkcí (vyššího řádu), kterou
+v&nbsp;této knihovně naleznete, je klasická funkce <strong>map</strong>, která
+se zde ovšem jmenuje <strong>-map</strong> nebo <strong>--map</strong>. Příklad
+použití:</p>
+
+<pre>
+(package-initialize)
+(require 'dash)
+&nbsp;
+(defun factorial
+  (n)
+  (apply '* (number-sequence 1 n)))
+&nbsp;
+(print
+  (-map 'factorial '(0 1 2 3 4 5 6 7 8 9 10)))
+</pre>
+
+<p>S&nbsp;výsledky:</p>
+
+<pre>
+(1 1 2 6 24 120 720 5040 40320 362880 3628800)
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: funkce <strong>-map</strong> je ve
+skutečnosti do knihovny <strong>dash</strong> přidána jen kvůli jmenným
+konvencím. Interně se totiž používá standardní funkce <strong>mapcar</strong>
+[<a
+href="https://www.gnu.org/software/emacs/manual/html_node/eintr/mapcar.html">1</a>]:</div></p>
+
+<pre>
+mapcar is a built-in function in ‘C source code’.
+&nbsp;
+(mapcar FUNCTION SEQUENCE)
+&nbsp;
+Apply FUNCTION to each element of SEQUENCE, and make a list of the results.
+The result is a list just as long as SEQUENCE.
+SEQUENCE may be a list, a vector, a bool-vector, or a string.
+</pre>
+
+<p>Předchozí příklad tedy můžeme přepsat na:</p>
+
+<pre>
+(print
+  (mapcar 'factorial '(0 1 2 3 4 5 6 7 8 9 10)))
+</pre>
+
+<p>Samozřejmě je možné, aby se přímo použila anonymní funkce namísto
+pojmenované funkce <strong>factorial</strong>:</p>
+
+<pre>
+(print
+  (-map (lambda (n) (apply '* (number-sequence 1 n))) '(0 1 2 3 4 5 6 7 8 9 10)))
+</pre>
+
+<p>A právě při čtení předchozího výrazu vás možná napadlo, že použití
+<strong>lambda</strong> je pro tak jednoduchou věc, jako je definice anonymní
+funkce používané na jediném místě, zbytečně zdlouhavé. Pro kratší zápis je
+možné použít variantu <strong>--map</strong>:</p>
+
+<pre>
+(print
+  (--map (apply '* (number-sequence 1 it)) '(0 1 2 3 4 5 6 7 8 9 10)))
+</pre>
+
+<p>Povšimněte si toho, že namísto anonymní funkce můžeme napsat přímo její tělo
+a v&nbsp;těle lze použít symbol <strong>it</strong>, který nahrazuje
+pojmenovaný parametr <strong>n</strong> z&nbsp;předchozího příkladu.
+<strong>it</strong> je v&nbsp;tomto případě rezervovaný symbol s&nbsp;přesně
+tímto význame (podobný % v&nbsp;Clojure), protože ve skutečnosti je
+<strong>--map</strong> makrem, s&nbsp;následující definicí:</p>
+
+<pre>
+(defmacro --map (form list)
+  "Anaphoric form of `-map'."
+  (declare (debug (form form)))
+`(mapcar (lambda (it) ,form) ,list))
+</pre>
+
+<p>Expanzí volání tohoto makra získáme kód (přesněji řečeno formu), který se
+podobá prvnímu příkladu s&nbsp;plnohodnotnou anonymní funkci (pro tyto účely
+můžeme ignorovat řádek s&nbsp;výstupem pro ladění).</p>
+
+<p><div class="rs-tip-major">Poznámka: ve skutečnosti se jedná o takzvané <a
+href="https://en.wikipedia.org/wiki/Anaphoric_macro">anaforické makro</a>.
+Makru se předává forma <strong>form</strong> odpovídající tělu anonymní funkce
+a blíže neupřesněný seznam s&nbsp;hodnotami <strong>list</strong>, které se
+anonymní funkci předají. Makro následně při své expanzi anonymní funkci
+vytvoří, přičemž použije <strong>it</strong> jako jméno parametru této anonymní
+funkce. Tato anonymní funkce bude předána standardní funkci vyššího řádu
+<strong>mapcar</strong> zmíněné výše, samozřejmě společně s&nbsp;hodnotami
+<strong>list</strong>. Expanze by mohla vypadat takto (prozatím vynecháme popis
+funkce znaků ` a ,):</div></p>
+
+<pre>
+(mapcar (lambda (it) (apply '* (number-sequence 1 it))) '(0 1 2 3 4 5 6 7 8 9 10))
+</pre>
+
+<p>Ještě se v&nbsp;rychlosti podíváme na další užitečnou funkci pojmenovanou
+<strong>-filter</strong>, jejíž význam a různé varianty budou popsány
+příště:</p>
+
+<pre>
+(package-initialize)
+(require 'dash)
+(require 'cl-lib)
+&nbsp;
+(setq numbers (number-sequence 0 30))
+&nbsp;
+(print numbers)
+&nbsp;
+(print (-filter 'cl-evenp numbers))
+&nbsp;
+(print (-filter 'cl-oddp numbers))
+&nbsp;
+(print (-filter (lambda (n) (zerop (% n 3))) numbers))
+&nbsp;
+(print (--filter (zerop (% it 3)) numbers))
+</pre>
+
+<p>Výsledky filtrace původních seznamu se 31 hodnotami 0..30:</p>
+
+<pre>
+(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30)
+&nbsp;
+(0 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30)
+&nbsp;
+(1 3 5 7 9 11 13 15 17 19 21 23 25 27 29)
+&nbsp;
+(0 3 6 9 12 15 18 21 24 27 30)
+&nbsp;
+(0 3 6 9 12 15 18 21 24 27 30)
+</pre>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Threading makra</h2>
+
+<p>V&nbsp;programovacím jazyku <i>Clojure</i> existuje dvojice velmi užitečných
+maker, která je možné použít pro zjednodušení zápisu &bdquo;kolony&ldquo;
+funkcí, kterým se postupně předávají výsledky předchozích funkcí. Jedná se
+vlastně o lispovskou obdobu klasické Unixové kolony používané při spojování
+filtrů v&nbsp;shellu (<strong>ls –1 | sort</strong> atd.). V&nbsp;Clojure je
+možné namísto poměrně nečitelného zápisu:</p>
+
+<pre>
+(f (g (h x)))
+</pre>
+
+<p>použít zápis:</p>
+
+<pre>
+(-&gt; x h g f)
+</pre>
+
+<p>Tímto zápisem se specifikuje, že se nějaká hodnota <strong>x</strong> předá
+funkci <strong>h</strong>, výsledek této funkce se předá funkci
+<strong>g</strong> a výsledek funkce <strong>g</strong> se nakonec předá funkci
+<strong>f</strong>. Podobně fungující makro je dostupné i v&nbsp;knihovně
+<strong>dash</strong> a tím pádem pochopitelně i v&nbsp;celém Emacs Lispu
+(pokud si pochopitelně tuto knihovnu naimportujete), takže si ho můžeme ihned
+vyzkoušet:</p>
+
+<pre>
+(-&gt; (number-sequence 0 30)
+    length
+    print)
+</pre>
+
+<p>S&nbsp;výsledkem:</p>
+
+<pre>
+31
+</pre>
+
+<p>Popř.&nbsp;poněkud složitější příklad, v&nbsp;němž funkci <strong>+</strong>
+předáme jako <i>první parametr</i> výsledek volání funkce
+<strong>length</strong>. Tento parametr není ve zdrojovém textu viditelný:</p>
+
+<pre>
+(-&gt; (number-sequence 0 30)
+    length
+    (+ 1)
+    print)
+</pre>
+
+<p>S&nbsp;výsledkem:</p>
+
+<pre>
+32
+</pre>
+
+<p>V&nbsp;mnoha případech nám však nemusí vyhovovat, že se předchozí výsledek
+předá další funkci v&nbsp;koloně v&nbsp;prvním parametru. Dobrým příkladem
+mohou být již výše zmíněné funkce vyššího řádu. Pokud se tyto funkce používají
+v&nbsp;koloně, musí se namísto makra -&gt; použít druhé threading makro nazvané
+-&gt;&gt;, které předchozí výsledek předá další funkci v&nbsp;<i>posledním</i>
+parametru, nikoli v&nbsp;parametru <i>prvním</i>. Opět se podívejme na
+jednoduchý příklad:
+
+<pre>
+(-&gt;&gt; (number-sequence 0 30)
+     (-filter 'cl-evenp)
+     (-filter (lambda (n) (zerop (% n 3))))
+     reverse
+     print)
+</pre>
+
+<p>Výsledek by měl vypadat takto:</p>
+
+<pre>
+(30 24 18 12 6 0)
+</pre>
+
+<p>V&nbsp;předchozím jsme funkci vyššího řádu <strong>-filter</strong>
+předávali složitější predikáty, které si samozřejmě můžeme pro větší čitelnost
+definovat v&nbsp;nových uživatelských funkcích:</p>
+
+<pre>
+(defun even-numbers
+  (numbers)
+  (-filter 'cl-evenp numbers))
+&nbsp;
+&nbsp;
+(defun div-by-three-numbers
+  (numbers)
+  (-filter (lambda (n) (zerop (% n 3))) numbers))
+</pre>
+
+<p>Následně se nám předchozí příklad zjednoduší:</p>
+
+<pre>
+(-&gt;&gt; (number-sequence 0 30)
+     even-numbers
+     div-by-three-numbers
+     reverse
+     print)
+</pre>
+
+<p>Výsledek bude shodný s&nbsp;předchozím příkladem:</p>
+
+<pre>
+(30 24 18 12 6 0)
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: schválně si zkuste příklad přečíst
+nahlas &ndash; bude přesně odpovídat tomu, jak budou funkce volány
+v&nbsp;runtime.</div></p>
+
+<p>První hodnotou, která do threading makra vstupuje, může být přímo
+zpracovávané číslo (bude ihned předáno generátoru
+<strong>number-sequence</strong> ve druhém parametru):</p>
+
+<pre>
+(-&gt;&gt; 100
+     (number-sequence 0)
+     even-numbers
+     div-by-three-numbers
+     reverse
+     print)
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+(96 90 84 78 72 66 60 54 48 42 36 30 24 18 12 6 0)
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: podrobnější popis všech užitečných
+variant threading maker bude uveden v&nbsp;navazujícím článku.</div></p>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Zdrojové kódy většiny dnes popsaných demonstračních příkladů byly uloženy do
+Git repositáře dostupného na adrese <a
+href="https://github.com/tisnik/elisp-examples">https://github.com/tisnik/elisp-examples</a>
+(stále na GitHubu :-). V&nbsp;případě, že nebudete chtít klonovat celý
+repositář (ten je ovšem stále velmi malý, dnes má doslova několik kilobajtů),
+můžete namísto toho použít odkazy na jednotlivé příklady, které naleznete
+v&nbsp;následující tabulce:</p>
+
+<table>
+<tr><th> #</th><th>Demonstrační příklad</th><th>Popis</th><th>Cesta</th></tr>
+<tr><td> 1</td><td>01_print_variants.el</td><td>různé varianty funkce <strong>print</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/01_print_variants.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/01_print_variants.el</a></td></tr>
+<tr><td> 2</td><td>02_while_loop_A.el</td><td>jednoduchá smyčka typu <strong>while</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/02_while_loop_A.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/02_while_loop_A.el</a></td></tr>
+<tr><td> 3</td><td>03_while_loop_B.el</td><td>jednoduchá smyčka typu <strong>while</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/03_while_loop_B.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/03_while_loop_B.el</a></td></tr>
+<tr><td> 4</td><td>04_cl_loop_repeat.el</td><td>klauzule <strong>repeat</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/04_cl_loop_repeat.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/04_cl_loop_repeat.el</a></td></tr>
+<tr><td> 5</td><td>05_cl_loop_while_until.el</td><td>klauzule <strong>while</strong> a <strong>until</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/05_cl_loop_while_until.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/05_cl_loop_while_until.el</a></td></tr>
+<tr><td> 6</td><td>06_cl_loop_for_to.el</td><td>smyčka s&nbsp;počitadlem</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/06_cl_loop_for_to.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/06_cl_loop_for_to.el</a></td></tr>
+<tr><td> 7</td><td>07_cl_loop_for_from_to.el</td><td>smyčka s&nbsp;počitadlem</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/07_cl_loop_for_from_to.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/07_cl_loop_for_from_to.el</a></td></tr>
+<tr><td> 8</td><td>08_cl_loop_for_from_to_by.el</td><td>smyčka s&nbsp;počitadlem</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/08_cl_loop_for_from_to_by.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/08_cl_loop_for_from_to_by.el</a></td></tr>
+<tr><td> 9</td><td>09_cl_loop_for_from_dowto.el</td><td>smyčka s&nbsp;počitadlem</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/09_cl_loop_for_from_dowto.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/09_cl_loop_for_from_dowto.el</a></td></tr>
+<tr><td>10</td><td>10_cl_loop_for_in.el</td><td>procházení seznamem</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/10_cl_loop_for_in.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/10_cl_loop_for_in.el</a></td></tr>
+<tr><td>11</td><td>11_cl_loop_for_on.el</td><td>procházení seznamem</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/11_cl_loop_for_on.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/11_cl_loop_for_on.el</a></td></tr>
+<tr><td>12</td><td>12_cl_loop_for_in_ref.el</td><td>získání reference na procházené prvky</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/12_cl_loop_for_in_ref.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/12_cl_loop_for_in_ref.el</a></td></tr>
+<tr><td>13</td><td>13_cl_loop_append.el</td><td>klauzule <strong>append</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/13_cl_loop_append.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/13_cl_loop_append.el</a></td></tr>
+<tr><td>14</td><td>14_cl_loop_sum.el</td><td>výpočet sumy prvků</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/14_cl_loop_sum.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/14_cl_loop_sum.el</a></td></tr>
+<tr><td>15</td><td>15_cl_loop_max_min_count_sum.el</td><td>statistické informace o seznamu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/15_cl_loop_max_min_count_sum.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/15_cl_loop_max_min_count_sum.el</a></td></tr>
+<tr><td>16</td><td>16_rnd_stats.el</td><td>statistické informace o seznamu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/16_rnd_stats.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/16_rnd_stats.el</a></td></tr>
+<tr><td>17</td><td>17_cl_loop_local_vars.el</td><td>lokální proměnné smyčky</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/17_cl_loop_local_vars.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/17_cl_loop_local_vars.el</a></td></tr>
+<tr><td>18</td><td>18_dash_basics.el</td><td>použití <strong>-map</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/18_dash_basics.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/18_dash_basics.el</a></td></tr>
+<tr><td>19</td><td>19_dash_filters.el</td><td>použití <strong>-filter</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/19_dash_filters.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/19_dash_filters.el</a></td></tr>
+<tr><td>20</td><td>20_threading_macro.el</td><td>threading makro</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-3/20_threading_macro.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-3/20_threading_macro.el</a></td></tr>
+</table>
+
+
+
+<p><a name="k19"></a></p>
+<h2 id="k19">19. Literatura</h2>
+
+<ol>
+
+<li>Tutorial for the Common Lisp Loop Macro<br />
+<a href="http://www.ai.sri.com/pkarp/loop.html">http://www.ai.sri.com/pkarp/loop.html</a>
+</li>
+
+<li>Common Lisp's Loop Macro Examples for Beginners<br />
+<a href="http://www.unixuser.org/~euske/doc/cl/loop.html">http://www.unixuser.org/~euske/doc/cl/loop.html</a>
+</li>
+
+<li>A modern list api for Emacs. No 'cl required.<br />
+<a href="https://github.com/magnars/dash.el">https://github.com/magnars/dash.el</a>
+</li>
+
+<li>The LOOP Facility<br />
+<a href="http://www.lispworks.com/documentation/HyperSpec/Body/06_a.htm">http://www.lispworks.com/documentation/HyperSpec/Body/06_a.htm</a>
+</li>
+
+<li>McCarthy<br />
+<i>&bdquo;Recursive functions of symbolic expressions and their computation by machine, part I&ldquo;</i><br />
+1960
+</li>
+
+<li>Guy L. Steele<br />
+<i>&bdquo;History of Scheme&ldquo;</i><br />
+2006, Sun Microsystems Laboratories
+</li>
+
+<li>
+Kolář J., Muller K.:<br />
+<i>&bdquo;Speciální programovací jazyky&ldquo;</i><br />
+Praha 1981
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 9, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., October 1987
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 10, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., September 1988
+</li>
+
+<li>McCarthy, John; Abrahams, Paul W.; Edwards, Daniel J.; Hart, Timothy P.; Levin, Michael I.<br />
+<i>&bdquo;LISP 1.5 Programmer's Manual&ldquo;</i><br />
+MIT Press. ISBN 0 262 130 1 1 4
+</li>
+
+<li>Carl Hewitt; Peter Bishop and Richard Steiger<br />
+<i>&bdquo;A Universal Modular Actor Formalism for Artificial Intelligence&ldquo;</i><br />
+1973
+</li>
+
+<li>Feiman, J.<br />
+<i>&bdquo;The Gartner Programming Language Survey (October 2001)&ldquo;</i><br />
+Gartner Advisory
+</li>
+
+<li>Harold Abelson, Gerald Jay Sussman, Julie Sussman:<br />
+<i>Structure and Interpretation of Computer Programs</i><br />
+MIT Press. 1985, 1996 (a možná vyšel i další přetisk)
+</li>
+
+<li>Paul Graham:<br />
+<i>On Lisp</i><br />
+Prentice Hall, 1993<br />
+Dostupné online na stránce <a href="http://www.paulgraham.com/onlisptext.html">http://www.paulgraham.com/onlisptext.html</a>
+</li>
+
+<li>David S. Touretzky<br />
+<i>Common LISP: A Gentle Introduction to Symbolic Computation (Dover Books on Engineering)</i><br />
+</li>
+
+<li>Peter Norvig<br />
+<i>Paradigms of Artificial Intelligence Programming: Case Studies in Common Lisp</i>
+</li>
+
+</ol>
+
+
+
+<p><a name="k20"></a></p>
+<h2 id="k20">20. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>The mapcar Function (An Introduction to Programming in Emacs Lisp)<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/mapcar.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/mapcar.html</a>
+</li>
+
+<li>Anaphoric macro<br />
+<a href="https://en.wikipedia.org/wiki/Anaphoric_macro">https://en.wikipedia.org/wiki/Anaphoric_macro</a>
+</li>
+
+<li>Some Common Lisp Loop Macro Examples<br />
+<a href="https://www.youtube.com/watch?v=3yl8o6r_omw">https://www.youtube.com/watch?v=3yl8o6r_omw</a>
+</li>
+
+<li>A Guided Tour of Emacs<br />
+<a href="https://www.gnu.org/software/emacs/tour/">https://www.gnu.org/software/emacs/tour/</a>
+</li>
+
+<li>The Roots of Lisp<br />
+<a href="http://www.paulgraham.com/rootsoflisp.html">http://www.paulgraham.com/rootsoflisp.html</a>
+</li>
+
+<li>Evil (Emacs Wiki)<br />
+<a href="https://www.emacswiki.org/emacs/Evil">https://www.emacswiki.org/emacs/Evil</a>
+</li>
+
+<li>Evil (na GitHubu)<br />
+<a href="https://github.com/emacs-evil/evil">https://github.com/emacs-evil/evil</a>
+</li>
+
+<li>Evil (na stránkách repositáře MELPA)<br />
+<a href="https://melpa.org/#/evil">https://melpa.org/#/evil</a>
+</li>
+
+<li>Evil Mode: How I Switched From VIM to Emacs<br />
+<a href="https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html">https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html</a>
+</li>
+
+<li>GNU Emacs (home page)<br />
+<a href="https://www.gnu.org/software/emacs/">https://www.gnu.org/software/emacs/</a>
+</li>
+
+<li>GNU Emacs (texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs">http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs</a>
+</li>
+
+<li>An Introduction To Using GDB Under Emacs<br />
+<a href="http://tedlab.mit.edu/~dr/gdbintro.html">http://tedlab.mit.edu/~dr/gdbintro.html</a>
+</li>
+
+<li>An Introduction to Programming in Emacs Lisp<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html</a>
+</li>
+
+<li>27.6 Running Debuggers Under Emacs<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html">https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html</a>
+</li>
+
+<li>GdbMode<br />
+<a href="http://www.emacswiki.org/emacs/GdbMode">http://www.emacswiki.org/emacs/GdbMode</a>
+</li>
+
+<li>Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Emacs">https://en.wikipedia.org/wiki/Emacs</a>
+</li>
+
+<li>Emacs timeline<br />
+<a href="http://www.jwz.org/doc/emacs-timeline.html">http://www.jwz.org/doc/emacs-timeline.html</a>
+</li>
+
+<li>Emacs Text Editors Family<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily">http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse (část 2: vyhledávání a nahrazování textu)<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/</a>
+</li>
+
+<li>Emacs/Evil-mode - A basic reference to using evil mode in Emacs<br />
+<a href="http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet">http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet</a>
+</li>
+
+<li>From Vim to Emacs+Evil chaotic migration guide<br />
+<a href="https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/">https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/</a>
+</li>
+
+<li>Introduction to evil-mode {video)<br />
+<a href="https://www.youtube.com/watch?v=PeVQwYUxYEg">https://www.youtube.com/watch?v=PeVQwYUxYEg</a>
+</li>
+
+<li>EINE (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/EINE">http://www.emacswiki.org/emacs/EINE</a>
+</li>
+
+<li>EINE (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EINE">http://texteditors.org/cgi-bin/wiki.pl?EINE</a>
+</li>
+
+<li>ZWEI (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/ZWEI">http://www.emacswiki.org/emacs/ZWEI</a>
+</li>
+
+<li>ZWEI (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?ZWEI">http://texteditors.org/cgi-bin/wiki.pl?ZWEI</a>
+</li>
+
+<li>Zmacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Zmacs">https://en.wikipedia.org/wiki/Zmacs</a>
+</li>
+
+<li>Zmacs (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?Zmacs">http://texteditors.org/cgi-bin/wiki.pl?Zmacs</a>
+</li>
+
+<li>TecoEmacs (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/TecoEmacs">http://www.emacswiki.org/emacs/TecoEmacs</a>
+</li>
+
+<li>Micro Emacs<br />
+<a href="http://www.emacswiki.org/emacs/MicroEmacs">http://www.emacswiki.org/emacs/MicroEmacs</a>
+</li>
+
+<li>Micro Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/MicroEMACS">https://en.wikipedia.org/wiki/MicroEMACS</a>
+</li>
+
+<li>EmacsHistory<br />
+<a href="http://www.emacswiki.org/emacs/EmacsHistory">http://www.emacswiki.org/emacs/EmacsHistory</a>
+</li>
+
+<li>Seznam editorů s ovládáním podobným Emacsu či kompatibilních s příkazy Emacsu<br />
+<a href="http://www.finseth.com/emacs.html">http://www.finseth.com/emacs.html</a>
+</li>
+
+<li>evil-numbers<br />
+<a href="https://github.com/cofi/evil-numbers">https://github.com/cofi/evil-numbers</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (1.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (2.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (3): Nemiver<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (4): KDbg<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (5): ladění aplikací v editorech Emacs a Vim<br />
+<a href="https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/">https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/</a>
+</li>
+
+<li>Org mode<br />
+<a href="https://orgmode.org/">https://orgmode.org/</a>
+</li>
+
+<li>The Org Manual<br />
+<a href="https://orgmode.org/manual/index.html">https://orgmode.org/manual/index.html</a>
+</li>
+
+<li>Kakoune (modální textový editor)<br />
+<a href="http://kakoune.org/">http://kakoune.org/</a>
+</li>
+
+<li>Vim-style keybinding in Emacs/Evil-mode<br />
+<a href="https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8">https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8</a>
+</li>
+
+<li>Emacs - jak začít<br />
+<a href="http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit">http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit</a>
+</li>
+
+<li>Programovací jazyk LISP a LISP machines<br />
+<a href="https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/">https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/</a>
+</li>
+
+<li>Evil-surround<br />
+<a href="https://github.com/emacs-evil/evil-surround">https://github.com/emacs-evil/evil-surround</a>
+</li>
+
+<li>Spacemacs<br />
+<a href="http://spacemacs.org/">http://spacemacs.org/</a>
+</li>
+
+<li>Lisp: Common Lisp, Racket, Clojure, Emacs Lisp<br />
+<a href="http://hyperpolyglot.org/lisp">http://hyperpolyglot.org/lisp</a>
+</li>
+
+<li>Common Lisp, Scheme, Clojure, And Elisp Compared<br />
+<a href="http://irreal.org/blog/?p=725">http://irreal.org/blog/?p=725</a>
+</li>
+
+<li>Does Elisp Suck?<br />
+<a href="http://irreal.org/blog/?p=675">http://irreal.org/blog/?p=675</a>
+</li>
+
+<li>Emacs pro mírně pokročilé (9): Elisp<br />
+<a href="https://www.root.cz/clanky/emacs-elisp/">https://www.root.cz/clanky/emacs-elisp/</a>
+</li>
+
+<li>If I want to learn lisp, are emacs and elisp a good choice?<br />
+<a href="https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/">https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/</a>
+</li>
+
+<li>Clojure(Script) Interactive Development Environment that Rocks!<br />
+<a href="https://github.com/clojure-emacs/cider">https://github.com/clojure-emacs/cider</a>
+</li>
+
+<li>An Introduction to Emacs Lisp<br />
+<a href="https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html">https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html</a>
+</li>
+
+<li>Emergency Elisp<br />
+<a href="http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html">http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html</a>
+</li>
+
+<li>Racket<br />
+<a href="https://racket-lang.org/">https://racket-lang.org/</a>
+</li>
+
+<li>The Racket Manifesto<br />
+<a href="http://felleisen.org/matthias/manifesto/">http://felleisen.org/matthias/manifesto/</a>
+</li>
+
+<li>MIT replaces Scheme with Python<br />
+<a href="https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/">https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/</a>
+</li>
+
+<li>Adventures in Advanced Symbolic Programming<br />
+<a href="http://groups.csail.mit.edu/mac/users/gjs/6.945/">http://groups.csail.mit.edu/mac/users/gjs/6.945/</a>
+</li>
+
+<li>Why MIT Switched from Scheme to Python (2009)<br />
+<a href="https://news.ycombinator.com/item?id=14167453">https://news.ycombinator.com/item?id=14167453</a>
+</li>
+
+<li>Starodávná stránka XLispu<br />
+<a href="http://www.xlisp.org/">http://www.xlisp.org/</a>
+</li>
+
+<li>AutoLISP<br />
+<a href="https://en.wikipedia.org/wiki/AutoLISP">https://en.wikipedia.org/wiki/AutoLISP</a>
+</li>
+
+<li>Seriál PicoLisp: minimalistický a výkonný interpret Lispu<br />
+<a href="https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/">https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/</a>
+</li>
+
+<li>Common Lisp<br />
+<a href="https://common-lisp.net/">https://common-lisp.net/</a>
+</li>
+
+<li>Getting Going with Common Lisp<br />
+<a href="https://cliki.net/Getting%20Started">https://cliki.net/Getting%20Started</a>
+</li>
+
+<li>Online Tutorial (Common Lisp)<br />
+<a href="https://cliki.net/online%20tutorial">https://cliki.net/online%20tutorial</a>
+</li>
+
+<li>Guile Emacs<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacs">https://www.emacswiki.org/emacs/GuileEmacs</a>
+</li>
+
+<li>Guile Emacs History<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacsHistory">https://www.emacswiki.org/emacs/GuileEmacsHistory</a>
+</li>
+
+<li>Guile is a programming language<br />
+<a href="https://www.gnu.org/software/guile/">https://www.gnu.org/software/guile/</a>
+</li>
+
+<li>MIT Scheme<br />
+<a href="http://groups.csail.mit.edu/mac/projects/scheme/">http://groups.csail.mit.edu/mac/projects/scheme/</a>
+</li>
+
+<li>SIOD: Scheme in One Defun<br />
+<a href="http://people.delphiforums.com/gjc//siod.html">http://people.delphiforums.com/gjc//siod.html</a>
+</li>
+
+<li>CommonLispForEmacs<br />
+<a href="https://www.emacswiki.org/emacs/CommonLispForEmacs">https://www.emacswiki.org/emacs/CommonLispForEmacs</a>
+</li>
+
+<li>Elisp: print, princ, prin1, format, message<br />
+<a href="http://ergoemacs.org/emacs/elisp_printing.html">http://ergoemacs.org/emacs/elisp_printing.html</a>
+</li>
+
+<li>Special Forms in Lisp<br />
+<a href="http://www.nhplace.com/kent/Papers/Special-Forms.html">http://www.nhplace.com/kent/Papers/Special-Forms.html</a>
+</li>
+
+<li>Basic Building Blocks in LISP<br />
+<a href="https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm">https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm</a>
+</li>
+
+<li>Introduction to LISP - University of Pittsburgh<br />
+<a href="https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf">https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf</a>
+</li>
+
+<li>Why don't people use LISP<br />
+<a href="https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/">https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/</a>
+</li>
+
+<li>Structured program theorem<br />
+<a href="https://en.wikipedia.org/wiki/Structured_program_theorem">https://en.wikipedia.org/wiki/Structured_program_theorem</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2018</small></p>
+</body>
+</html>
+
