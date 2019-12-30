@@ -1,0 +1,2005 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Úpravy Emacsu s Emacs Lisp: možnosti nabízené knihovnou Dash</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1></h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>V předposledním článku, který se bude zabývat výhradně Emacs Lispem a nikoli samotným Emacsem, si popíšeme některé možnosti poskytované knihovnou Dash. Tato knihovna nabízí programátorům užitečné funkce inspirované standardní knihovnou programovacího jazyka Clojure.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Úpravy Emacsu s Emacs Lisp: možnosti nabízené knihovnou Dash</a></p>
+<p><a href="#k02">2. Funkce <strong>-filter</strong></a></p>
+<p><a href="#k03">3. Makro <strong>-remove</strong></a></p>
+<p><a href="#k04">4. Odstranění konkrétních prvků pomocí <strong>-remove-item</strong>, <strong>-remove-at</strong> a <strong>-remove-at-indices</strong></a></p>
+<p><a href="#k05">5. Odstranění prvních či posledních prvků odpovídajících predikátu ze seznamu</a></p>
+<p><a href="#k06">6. Získání podseznamu: <strong>take</strong>, <strong>take-last</strong>, <strong>drop</strong>, <strong>drop-last</strong></a></p>
+<p><a href="#k07">7. Získání sekvence prvků ze seznamu na základě podmínky: <strong>take-while</strong> a <strong>drop-while</strong></a></p>
+<p><a href="#k08">8. Funkce <strong>-concat</strong> a <strong>-flatten</strong></a></p>
+<p><a href="#k09">9. Funkce <strong>-flatten-n</strong></a></p>
+<p><a href="#k10">10. Redukce seznamů s&nbsp;akumulací výsledné hodnoty</a></p>
+<p><a href="#k11">11. Klasická funkce vyššího řádu <strong>-reduce</strong></a></p>
+<p><a href="#k12">12. Další formy funkce <strong>-reduce</strong></a></p>
+<p><a href="#k13">13. Získání mezivýsledků variant funkce <strong>-reduce</strong></a></p>
+<p><a href="#k14">14. Speciální formy &bdquo;reducerů&ldquo;</a></p>
+<p><a href="#k15">15. Konstrukce seznamů pomocí <strong>-iterate</strong></a></p>
+<p><a href="#k16">16. Threading makra podruhé</a></p>
+<p><a href="#k17">17. Další formy threading maker</a></p>
+<p><a href="#k18">18. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k19">19. Literatura</a></p>
+<p><a href="#k20">20. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Úpravy Emacsu s Emacs Lisp: možnosti nabízené knihovnou Dash</h2>
+
+<p>Velká část <a
+href="https://www.root.cz/clanky/upravy-emacsu-s-emacs-lisp-vsemocne-makro-cl-loop-a-knihovna-dash/">pondělního
+článku</a> byla věnována popisu vlastností makra <strong>cl-loop</strong>,
+které bylo do Emacsu přeportováno z&nbsp;Common Lispu. Připomeňme si, že
+s&nbsp;využitím tohoto makra je možné rozšířit možnosti Emacs Lispu o různé
+varianty programových smyček, ať již se jedná o smyčky s&nbsp;počitadlem,
+smyčky určené pro průchod seznamy nebo vektory, smyčky umožňující výpočet a
+akumulaci hodnot z&nbsp;procházených seznamů (minimum, maximum, suma, ...) či
+dokonce i o různé kombinace těchto typů programových smyček. Makro
+<strong>cl-loop</strong> může být užitečné například pro uživatele přecházející
+na Emacs Lisp z&nbsp;konvenčních programovacích jazyků, ovšem musíme přitom
+akceptovat fakt, že se v&nbsp;něm používá vlastní DSL (doménově specifický
+jazyk), který je určitým mixem mezi zápisem používaným v&nbsp;Lispech a zápisem
+ze strukturovaných jazyků.</p>
+
+<p>Ovšem ve chvíli, kdy se makro <strong>cl-loop</strong> nebo i standardní
+speciální forma <strong>while</strong> používá například pro zpracování prvků
+v&nbsp;seznamech nebo vektorech, je vhodné se zamyslet nad tím, zda neexistují
+lepší způsoby řešení těchto úkolů. Existují totiž i alternativní způsoby
+nabízené například knihovnou pojmenovanou <a
+href="https://elpa.gnu.org/packages/seq.html">seq</a>; přičemž jedno
+z&nbsp;možných &ndash; a nutno říci, že i velmi elegantních &ndash; řešení
+spočívá ve využití knihovny pojmenované <strong>dash</strong>. Tato knihovna
+nabízí makra a funkce vyššího řádu určené pro funkcionálně pojaté zpracování
+různých typů sekvencí. Jedná se například o filtraci prvků, postupnou redukci
+sekvencí, aplikaci dalších funkcí na prvky sekvence, rozdělení sekvence podle
+nějakého kritéria atd.</p>
+
+<p>Většina funkcí, které v&nbsp;knihovně <strong>dash</strong> nalezneme, nijak
+nemodifikuje původní (zdrojovou sekvenci), takže jsou tyto operace
+nedestruktivní. Na druhou stranu je ovšem nutno poznamenat, že seznamy nejsou
+v&nbsp;Emacs Lispu neměnitelné (<i>immutable</i>), tak, jak je tomu
+v&nbsp;Clojure, takže je nutné při použití knihovny <strong>dash</strong> dávat
+pozor na to, jaké další funkce se volají. Jen pro ukázku si uveďme funkci,
+která &bdquo;tiše&ldquo; modifikuje původní seznam a je tedy z&nbsp;tohoto
+pohledu destruktivní:</p>
+
+<pre>
+<strong>(setq l '(1 2 3))</strong>
+(1 2 3)
+&nbsp;
+<strong>l</strong>
+(1 2 3)
+&nbsp;
+<strong>(sort l '>)</strong>
+(3 2 1)
+&nbsp;
+<strong>l</strong>
+(1)
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: naprostá většina dále popsaných funkcí
+má stejné jméno (až na pomlčku či dvě pomlčky na začátku jména), jako funkce ze
+<a href="https://clojure.github.io/clojure/">standardní knihovny programovacího
+jazyka Clojure</a>. Je zde ovšem jeden velmi důležitý rozdíl &ndash; zatímco
+v&nbsp;jazyku Clojure se typicky pracuje s&nbsp;potenciálně nekonečnými
+sekvencemi, které jsou vyhodnocovány líně (tj.&nbsp;až tehdy, kdy je hodnota
+nějakého prvku skutečně zapotřebí), je tomu v&nbsp;knihovně Dash jinak.
+V&nbsp;ní se totiž pracuje s&nbsp;běžnými seznamy, typicky bez líného
+vyhodnocování. To má dopad na parametry některých funkcí. Pravděpodobně nejvíce
+je to patrné u funkce <strong>iterate</strong>, která v&nbsp;Clojure vrací
+nekonečnou sekvenci, kdežto v&nbsp;knihovně Dash musíme specifikovat celkový
+počet prvků, které budou touto funkcí vygenerovány.</div></p>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Funkce <strong>-filter</strong></h2>
+
+<p><div class="rs-tip-major">Důležitá poznámka: všechny demonstrační příklady
+si dnes budeme uvádět v&nbsp;interaktivní podobě, kde tučně zvýrazněný řádek
+znamená text zapsaný přímo programátorem (například do REPLu Emacs Lispu) a
+běžným písmem vypsaný řádek pak ukazuje výsledek vypsaný intepretrem Emacs
+Lispu. <a href="#k18">Na konci článku</a> jsou uvedeny zdrojové kódy všech dnes
+popisovaných příkladů, takže si je můžete vyzkoušet buď přímo v&nbsp;Emacsu (ve
+scratch bufferu atd.) nebo s&nbsp;využitím příkazu <strong>emacs -script
+název-skriptu.el</strong> spouštěného z&nbsp;příkazové řádky.</div></p>
+
+<p>První funkce, s&nbsp;níž se dnes seznámíme, se při zpracování seznamů
+používá velmi často. Tato funkce se jmenuje <strong>-filter</strong> a používá
+se pro vytvoření nového seznamu, který bude obsahovat jen ty prvky ze seznamu
+původního, které odpovídají nějakému <i>predikátu</i> (predikát je obecně
+funkce vracející pro svůj jediný vstup pravdivostní hodnotu). Původní seznam
+přitom není modifikován, takže je ho později možné použít i pro další účely.
+Ukažme si použití této funkce. Nejdříve musíme provést import všech potřebných
+modulů, tj.&nbsp;konkrétně knihovny <strong>dash</strong> a taktéž knihovny
+<strong>cl-lib</strong>, protože v&nbsp;ní najdeme použitelné predikáty:</p>
+
+<pre>
+<strong>(package-initialize)</strong>
+<strong>(require 'dash)</strong>
+<strong>(require 'cl-lib)</strong>
+</pre>
+
+<p>Dále vytvoříme vstupní seznam obsahující sekvenci celých čísel od -10 do 10
+(včetně obou krajních hodnot), což samozřejmě není nic složitého:</p>
+
+<pre>
+<strong>(setq numbers (number-sequence -10 10))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Následně se můžeme pokusit vyfiltrovat všechny sudé hodnoty (důležité je zde
+slovo <i>vyfiltrovat</i>, nikoli <i>odfiltrovat</i>):</p>
+
+<pre>
+<strong>(print (-filter 'cl-evenp numbers))</strong>
+&nbsp;
+(-10 -8 -6 -4 -2 0 2 4 6 8 10)
+</pre>
+
+<p>Podobně, pouze výměnou predikátu, získáme liché hodnoty:</p>
+
+<pre>
+<strong>(print (-filter 'cl-oddp numbers))</strong>
+&nbsp;
+(-9 -7 -5 -3 -1 1 3 5 7 9)
+</pre>
+
+<p>Predikátem může být jakákoli funkce s&nbsp;jedním parametrem, která vrací
+pravdivostní hodnotu (nebo jinou hodnotu automaticky převedenou na
+<strong>t</strong> nebo <strong>nil</strong>):</p>
+
+<pre>
+<strong>(print (-filter (lambda (n) (zerop (% n 3))) numbers))</strong>
+&nbsp;
+(-9 -6 -3 0 3 6 9)
+</pre>
+
+<p>Již minule jsme se seznámili s&nbsp;anaforickým makrem
+<strong>--filter</strong> umožňujícím zkrácený zápis anonymní funkce &ndash;
+zapisuje se jen její tělo, v&nbsp;němž se použije parametr
+<strong>it</strong>:</p>
+
+<pre>
+<strong>(print (--filter (zerop (% it 3)) numbers))</strong>
+&nbsp;
+(-9 -6 -3 0 3 6 9)
+</pre>
+
+<p>Samozřejmě nám nic nebrání si vytvořit vlastní predikát s&nbsp;využitím
+pojmenované (neanonymní) funkce a následně tento predikát použít při
+filtraci:</p>
+
+<pre>
+<strong>(defun positive?</strong>
+  <strong>(n)</strong>
+  <strong>(&gt; n 0))</strong>
+&nbsp;
+<strong>(print (-filter 'positive? numbers))</strong>
+&nbsp;
+(1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Složitější predikát pro kladná <i>a současně</i> lichá čísla:</p>
+
+<pre>
+<strong>(print (-filter (lambda (n) (and (cl-oddp n) (positive? n))) numbers))</strong>
+&nbsp;
+(1 3 5 7 9)
+</pre>
+
+<p>Další složitější predikát pro kladná <i>nebo</i> lichá čísla:</p>
+
+<pre>
+<strong>(print (-filter (lambda (n) (or (cl-oddp n) (positive? n))) numbers))</strong>
+&nbsp;
+(-9 -7 -5 -3 -1 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Makro <strong>-remove</strong></h2>
+
+<p>Výše popsaná funkce <strong>-filter</strong> sloužila k&nbsp;výběru prvků
+odpovídajících nějakému predikátu. Přesně opačně se chová funkce pojmenovaná
+<strong>-remove</strong>, protože zde predikát slouží k&nbsp;vyloučení prvků.
+Ve skutečnosti se ovšem (opět) vstupní seznam nemění, prvky jsou
+&bdquo;odstraněny&ldquo; ze seznamu výsledného.</p>
+
+<p>Ukázku použití této funkce začneme stejně, jako tomu bylo v&nbsp;předchozím
+příkladu. Import potřebných modulů a vytvoření seznamu se sekvencí celých čísel
+od -10 do 10 je naprosto shodné s&nbsp;příkladem uvedeným <a
+href="#k03">v&nbsp;předchozí kapitole</a>, takže jen krátce:</p>
+
+<pre>
+<strong>(package-initialize)</strong>
+<strong>(require 'dash)</strong>
+<strong>(require 'cl-lib)</strong>
+&nbsp;
+<strong>(setq numbers (number-sequence -10 10))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Vytvoření nového seznamu bez sudých prvků:</p>
+
+<pre>
+<strong>(print (-remove 'cl-evenp numbers))</strong>
+&nbsp;
+(-9 -7 -5 -3 -1 1 3 5 7 9)
+</pre>
+
+<p>Vytvoření nového seznamu bez lichých prvků:</p>
+
+<pre>
+<strong>(print (-remove 'cl-oddp numbers))</strong>
+&nbsp;
+(-10 -8 -6 -4 -2 0 2 4 6 8 10)
+</pre>
+
+<p>Vlastní predikát pro ignorování prvků dělitelných třemi:</p>
+
+<pre>
+<strong>(print (-remove (lambda (n) (zerop (% n 3))) numbers))</strong>
+&nbsp;
+(-10 -8 -7 -5 -4 -2 -1 1 2 4 5 7 8 10)
+</pre>
+
+<p>Dtto, ovšem nyní s&nbsp;využitím anaforického makra
+<strong>--remove</strong>:</p>
+
+<pre>
+<strong>(print (--remove (zerop (% it 3)) numbers))</strong>
+&nbsp;
+(-10 -8 -7 -5 -4 -2 -1 1 2 4 5 7 8 10)
+</pre>
+
+<p>Další varianta, tentokrát s&nbsp;vlastním predikátem:</p>
+
+<pre>
+<strong>(defun positive?</strong>
+  <strong>(n)</strong>
+  <strong>(&gt; n 0))</strong>
+&nbsp;
+<strong>(print (-remove 'positive? numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0)
+</pre>
+
+<p>Složitější predikát pro kladná <i>a současně</i> lichá čísla (ta jsou
+odstraněna):</p>
+
+<pre>
+<strong>(print (-remove (lambda (n) (and (cl-oddp n) (positive? n))) numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 2 4 6 8 10)
+</pre>
+
+<p>Další složitější predikát pro kladná <i>nebo</i> lichá čísla (ta jsou
+odstraněna):</p>
+
+<pre>
+<strong>(print (-remove (lambda (n) (or (cl-oddp n) (positive? n))) numbers))</strong>
+&nbsp;
+(-10 -8 -6 -4 -2 0)
+</pre>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Odstranění konkrétních prvků pomocí <strong>-remove-item</strong>, <strong>-remove-at</strong> a <strong>-remove-at-indices</strong></h2>
+
+<p>Poměrně užitečné jsou i další varianty funkce <strong>-remove</strong>.
+Význam těchto variant je vypsán v&nbsp;následující tabulce:</p>
+
+<table>
+<tr><th>Funkce</th><th>Význam</th></tr>
+<tr><td><strong>-remove-item</strong></td><td>vrátí nový seznam, v&nbsp;němž se nebudou nacházet prvky specifikované hodnoty</td></tr>
+<tr><td><strong>-remove-at</strong></td><td>vrátí nový seznam, v&nbsp;němž se nebude nacházet prvek, který byl původně na pozici <i>n</i></td></tr>
+<tr><td><strong>-remove-at-indices</strong></td><td>vrátí nový seznam, v&nbsp;němž se nebudou nacházet prvky umístěné na pozicích specifikovaných v&nbsp;prvním seznamu</td></tr>
+</table>
+
+<p><div class="rs-tip-major">Poznámka: od této chvíle budu všude pro
+jednoduchost používat pro formy z&nbsp;knihovny <strong>dash</strong> označení
+&bdquo;funkce&ldquo;, i když ve skutečnosti jsou některé dále popsané formy
+realizovány makrem. Z&nbsp;pohledu běžného uživatele je to však jedno a navíc
+se může způsob konkrétní implementace v&nbsp;další verzi knihovny
+<strong>dash</strong> změnit.</div></p>
+
+<p>Samozřejmě si opět ukážeme, jak se tyto funkce používají. Začneme již
+klasicky &ndash; prostou sekvencí celých čísel od -10  do 10:</p>
+
+<pre>
+<strong>(package-initialize)</strong>
+<strong>(require 'dash)</strong>
+<strong>(require 'cl-lib)</strong>
+&nbsp;
+<strong>(setq numbers (number-sequence -10 10))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Vytvoření nového seznamu, v&nbsp;němž nebudou prvky s&nbsp;hodnotou 0:</p>
+
+<pre>
+<strong>(print (-remove-item 0 numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Vytvoření nového seznamu, v&nbsp;němž nebude prvek s&nbsp;hodnotou 42.
+Takový prvek neexistuje, takže získáme kopii seznamu původního:</p>
+
+<pre>
+<strong>(print (-remove-item 42 numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Pro další testy použijeme seznam s&nbsp;devíti čísly:</p>
+
+<pre>
+<strong>(setq numbers '(0 0 0 1 1 1 2 2 2))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(0 0 0 1 1 1 2 2 2)
+</pre>
+
+<p>Vytvoření nového seznamu, v&nbsp;němž nebudou prvky s&nbsp;hodnotou 0:</p>
+
+<pre>
+<strong>(print (-remove-item 0 numbers))</strong>
+&nbsp;
+(1 1 1 2 2 2)
+</pre>
+
+<p>Vytvoření nového seznamu, v&nbsp;němž nebudou prvky s&nbsp;hodnotou 1:</p>
+
+<pre>
+<strong>(print (-remove-item 1 numbers))</strong>
+&nbsp;
+(0 0 0 2 2 2)
+</pre>
+
+<p>Vytvoření nového seznamu, v&nbsp;němž nebudou prvky s&nbsp;hodnotou 2:</p>
+
+<pre>
+<strong>(print (-remove-item 2 numbers))</strong>
+&nbsp;
+(0 0 0 1 1 1)
+</pre>
+
+<p>Vytvoření seznamu bez prvku na první pozici:</p>
+
+<pre>
+<strong>(print (-remove-at 0 numbers))</strong>
+&nbsp;
+(-9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Vytvoření seznamu bez prvku na druhé pozici:</p>
+
+<pre>
+<strong>(print (-remove-at 1 numbers))</strong>
+&nbsp;
+(-10 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Vytvoření seznamu bez prvku na desáté pozici:</p>
+
+<pre>
+<strong>(print (-remove-at 10 numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Odstranění prvku s&nbsp;indexem 0:</p>
+
+<pre>
+<strong>(print (-remove-at-indices '(0) numbers))</strong>
+&nbsp;
+(-9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Odstranění prvků s&nbsp;indexy 0, 1 a 2:</p>
+
+<pre>
+<strong>(print (-remove-at-indices '(0 1 2) numbers))</strong>
+&nbsp;
+(-7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Odstranění prvků s&nbsp;indexy 0, 10 a 20:</p>
+
+<pre>
+<strong>(print (-remove-at-indices '(10 20 0) numbers))</strong>
+&nbsp;
+(-9 -8 -7 -6 -5 -4 -3 -2 -1 1 2 3 4 5 6 7 8 9)
+</pre>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Odstranění prvních či posledních prvků odpovídajících predikátu ze seznamu</h2>
+
+<p>Další dvě užitečné funkce se jmenují <strong>-remove-first</strong> a
+<strong>-remove-last</strong>. Tyto funkce slouží k&nbsp;odstranění prvního
+resp.&nbsp;posledního prvku, který odpovídá nějakému predikátu. Tyto funkce
+sice vypadají nenápadně, ale díky nim lze z&nbsp;programového kódu odstranit
+poměrně velké množství složitějších programových smyček. Inicializace příkladu
+je shodná s&nbsp;příklady předchozími (import modulů, vytvoření sekvence celých
+čísel), takže si ji již nebudeme znovu uvádět. Původní číselná sekvence vypadá
+následovně:</p>
+
+<pre>
+<strong>(print numbers)</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Ukažme si vytvoření nového seznamu bez prvního prvku, který je sudým číslem.
+Čistě náhodou se jedná o zcela první prvek seznamu (<strong>car</strong>):</p>
+
+<pre>
+<strong>(print (-remove-first 'cl-evenp numbers))</strong>
+&nbsp;
+(-9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Vytvoření nového seznamu bez prvního prvku, který je lichým číslem.
+V&nbsp;našem konkrétním případě se jedná o prvek s&nbsp;hodnotou -9, takže ta
+ve výsledném seznamu chybí:</p>
+
+<pre>
+<strong>(print (-remove-first 'cl-oddp numbers))</strong>
+&nbsp;
+(-10 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Samozřejmě je možné si vyzkoušet i složitější příklad, například odstranění
+prvního prvku beze zbytku dělitelného třemi:</p>
+
+<pre>
+<strong>(print (-remove-first (lambda (n) (zerop (% n 3))) numbers))</strong>
+&nbsp;
+(-10 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Dtto, ovšem s&nbsp;využitím formy, v&nbsp;níž není nutné explicitně
+zapisovat formu <strong>lambda</strong>:</p>
+
+<pre>
+<strong>(print (--remove-first (zerop (% it 3)) numbers))</strong>
+&nbsp;
+(-10 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Odstranění prvního záporného prvku (-10):</p>
+
+<pre>
+<strong>(print (--remove-first (&gt; 0 it) numbers))</strong>
+&nbsp;
+(-9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Odstranění prvního kladného prvku (jedničky):</p>
+
+<pre>
+<strong>(print (--remove-first (&lt; 0 it) numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Další příklady již ukazují funkci <strong>-remove-last</strong>:</p>
+
+<pre>
+<strong>(print numbers)</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Odstranění posledního sudého čísla (10):</p>
+
+<pre>
+<strong>(print (-remove-last 'cl-evenp numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9)
+</pre>
+
+<p>Odstranění posledního lichého čísla (9):</p>
+
+<pre>
+<strong>(print (-remove-last 'cl-oddp numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 10)
+</pre>
+
+<p>Odstranění posledního čísla dělitelného třemi (9):</p>
+
+<pre>
+<strong>(print (-remove-last (lambda (n) (zerop (% n 3))) numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 10)
+</pre>
+
+<p>Odstranění posledního čísla dělitelného třemi (9), podoba s&nbsp;anaforickým
+makrem:</p>
+
+<pre>
+<strong>(print (--remove-last (zerop (% it 3)) numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 10)
+</pre>
+
+<p>Odstranění posledního záporného prvku (-1):</p>
+
+<pre>
+<strong>(print (--remove-last (&gt; 0 it) numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Odstranění posledního kladného prvku (10):</p>
+
+<pre>
+<strong>(print (--remove-last (&lt; 0 it) numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9)
+</pre>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Získání podseznamu: <strong>take</strong>, <strong>take-last</strong>, <strong>drop</strong>, <strong>drop-last</strong></h2>
+
+<p>Ve chvíli, kdy budeme potřebovat získat prvních <i>n</i> či posledních
+<i>n</i> prvků ze vstupního seznamu, použijeme funkce <strong>take</strong> a
+<strong>take-last</strong>. Vstupem nyní bude seznam obsahující celočíselné
+hodnoty 0 až 20:</p>
+
+<pre>
+<strong>(setq numbers (number-sequence 0 20))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+</pre>
+
+<p>Získání prvních pěti prvků:</p>
+
+<pre>
+<strong>(print (-take 5 numbers))</strong>
+&nbsp;
+(0 1 2 3 4)
+</pre>
+
+<p>Získání prvních 100 prvků (nedojde k&nbsp;chybě, vrátí se celý kratší
+seznam):</p>
+
+<pre>
+<strong>(print (-take 100 numbers))</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+</pre>
+
+<p>Získání posledních pěti prvků:</p>
+
+<pre>
+<strong>(print (-take-last 5 numbers))</strong>
+&nbsp;
+(16 17 18 19 20)
+</pre>
+
+<p>Získání posledních 100 prvků (taktéž nedojde k&nbsp;chybě, vrátí se celý
+kratší seznam):</p>
+
+<pre>
+<strong>(print (-take-last 100 numbers))</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+</pre>
+
+<p>Opakem jsou funkce <strong>-drop</strong> a <strong>-drop-last</strong>
+vracející původní seznam bez prvních či posledních <i>n</i> prvků. Vstupem bude
+stejný seznam, jako v&nbsp;předchozích příkladech:</p>
+
+<pre>
+<strong>(setq numbers (number-sequence 0 20))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+</pre>
+
+<p>Kopie seznamu bez prvních pěti prvků:</p>
+
+<pre>
+<strong>(print (-drop 5 numbers))</strong>
+&nbsp;
+(5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+</pre>
+
+<p>Zajímavá situace &ndash; zde se vrátí prázdný seznam (odstraněny jsou
+všechny prvky):</p>
+
+<pre>
+<strong>(print (-drop 100 numbers))</strong>
+&nbsp;
+nil
+</pre>
+
+<p>Kopie seznamu bez posledních pěti prvků:</p>
+
+<pre>
+<strong>(print (-drop-last 5 numbers))</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
+</pre>
+
+<p>Podobná situace, jako v&nbsp;příkladu s&nbsp;<strong>-drop 100</strong>:</p>
+
+<pre>
+<strong>(print (-drop-last 100 numbers))</strong>
+&nbsp;
+nil
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: díky těmto funkcím se vyhneme
+nepříjemnému počítání prvků, získávání délky seznamu atd.</div></p>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Získání sekvence prvků ze seznamu na základě podmínky: <strong>take-while</strong> a <strong>drop-while</strong></h2>
+
+<p>I další dvojice funkcí nazvaných <strong>-take-while</strong> a
+<strong>-drop-while</strong> je v&nbsp;praxi velmi užitečná, protože díky nim
+můžeme nahradit další typ potenciálně složitějších programových smyček. Funkce
+<strong>-take-while</strong> prochází seznamem a pokud platí podmínka
+(predikát), tvoří z&nbsp;jednotlivých prvků seznam výstupní. Jakmile podmínka
+platit přestane, je funkce ukončena a celý doposud vytvořený seznam se vrátí.
+Naproti tomu se u funkce <strong>-drop-while</strong> postupuje pochopitelně
+obráceně: najde se první prvek, pro nějž je predikát nepravdivý a následně
+se vrátí seznam obsahující zbytek seznamu (od tohoto prvku do konce).</p>
+
+<p>V&nbsp;příkladech se vrátíme k&nbsp;původní sekvenci celých čísel od -10 do
+10:</p>
+
+<pre>
+<strong>(setq numbers (number-sequence -10 10))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Získání prvních prvků menších než 0, tato hodnota způsobí ukončení
+generování seznamu:</p>
+
+<pre>
+<strong>(print (-take-while (lambda (n) (&lt; n 0)) numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1)
+</pre>
+
+<p>Dtto, ovšem nyní s&nbsp;využitím anaforického makra
+<strong>--take-while</strong>:</p>
+
+<pre>
+<strong>(print (--take-while (&lt; it 0) numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1)
+</pre>
+
+<p>V&nbsp;dalším příkladu již první prvek neodpovídá podmínce, takže výsledkem
+je prázdný seznam, který je v&nbsp;Emacs Lispu totožný
+s&nbsp;<strong>nil</strong>:</p>
+
+<pre>
+<strong>(print (--take-while (&gt; it 0) numbers))</strong>
+&nbsp;
+nil
+</pre>
+
+<p>Predikát <strong>t</strong> je vždy pravdivý a získáme tak kopii
+seznamu:</p>
+
+<pre>
+<strong>(print (--take-while t numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Predikát přestane být splněn pro prvek 0, takže se vrátí seznam od tohoto
+prvku do konce:</p>
+
+<pre>
+<strong>(print (-drop-while (lambda (n) (&lt; n 0)) numbers))</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Dtto, ovšem nyní s&nbsp;využitím anaforického makra
+<strong>--drop-while</strong>:</p>
+
+<pre>
+<strong>(print (--drop-while (&lt; it 0) numbers))</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Zde není predikát splněn ani pro první prvek &ndash; vrátí se kopie
+seznamu:</p>
+
+<pre>
+<strong>(print (--drop-while (&gt; it 0) numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Predikát <strong>t</strong> je vždy pravdivý a získáme tak prázdný seznam
+(všechny prvky jsou odstraněny):</p>
+
+<pre>
+<strong>(print (--drop-while t numbers))</strong>
+&nbsp;
+nil
+</pre>
+
+<p>Opak předchozího predikátu &ndash; získáme zde kopii původního seznamu:</p>
+
+<pre>
+<strong>(print (--drop-while nil numbers))</strong>
+&nbsp;
+(-10 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Funkce <strong>-concat</strong> a <strong>-flatten</strong></h2>
+
+<p>Funkce <strong>-concat</strong> se používá pro spojení většího množství
+seznamů, přičemž prvky seznamů jsou na stejné úrovni, na rozdíl od standardní
+formy <strong>cons</strong>. Funkci si otestujeme na třech seznamech:</p>
+
+<pre>
+(setq l1 '(1 2 3))
+(setq l2 '(3 4 5))
+(setq l3 '(7 8 9))
+</pre>
+
+<p>Výsledek by měl vypadat následovně:</p>
+
+<pre>
+<strong>(print (-concat l1 l2 l3))</strong>
+&nbsp;
+(1 2 3 3 4 5 7 8 9)
+</pre>
+
+<p>Pokud seznamy obsahují vnořené podseznamy, je tato struktura ve výsledku
+zachována:</p>
+
+<pre>
+(setq l1 '(1 (2 3)))
+(setq l2 '((3 4) 5))
+(setq l3 '(7 (8) 9))
+</pre>
+
+<p>Výsledek spojení těchto tří seznamů:</p>
+
+<pre>
+<strong>(print (-concat l1 l2 l3))</strong>
+&nbsp;
+(1 (2 3) (3 4) 5 7 (8) 9)
+</pre>
+
+<p>Funkce <strong>-flatten</strong> vrátí původní seznam, ovšem ve
+&bdquo;zploštělé&ldquo; podobě, v&nbsp;níž budou prvky všech podseznamů
+postupně vložené do jednorozměrného lineárně vázaného seznamu. Význam této
+funkce je patrný z&nbsp;následující trojice příkladů:</p>
+
+<pre>
+<strong>(print (-flatten '(1 2 3 4 5)))</strong>
+&nbsp;
+(1 2 3 4 5)
+</pre>
+
+<pre>
+<strong>(print (-flatten '(1 (2 3) (4 5))))</strong>
+&nbsp;
+(1 2 3 4 5)
+</pre>
+
+<pre>
+<strong>(print (-flatten '(1 (2 (3 (4 (5)))))))</strong>
+&nbsp;
+(1 2 3 4 5)
+</pre>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Funkce <strong>-flatten-n</strong></h2>
+
+<p>Zajímavější je funkce pojmenovaná <strong>-flatten-n</strong>, která taktéž
+konvertuje vstupní datovou strukturu do její &bdquo;zploštělé&ldquo; podoby,
+ovšem jen do specifikované úrovně. Pro již zploštělý seznam získáme jeho
+kopii:</p>
+
+<pre>
+<strong>(dotimes (n 3)</strong>
+  <strong>(print (-flatten-n n '(1 2 3 4 5))))</strong>
+&nbsp;
+(1 2 3 4 5)
+(1 2 3 4 5)
+(1 2 3 4 5)
+</pre>
+
+<p>Pro datovou strukturu s&nbsp;pouhými dvěma úrovněmi rekurze je chování
+následující:</p>
+
+<pre>
+<strong>(dotimes (n 3)</strong>
+  <strong>(print (-flatten-n n '(1 (2 3) (4 5)))))</strong>
+&nbsp;
+(1 (2 3) (4 5))
+(1 2 3 4 5)
+(1 2 3 4 5)
+</pre>
+
+<p>A konečně si ukažme chování na datové struktuře s&nbsp;pěti rekurzivními
+úrovněmi:</p>
+
+<pre>
+<strong>(dotimes (n 7)</strong>
+  <strong>(print (-flatten-n n '(1 (2 (3 (4 (5))))))))</strong>
+&nbsp;
+(1 (2 (3 (4 (5)))))
+(1 2 (3 (4 (5))))
+(1 2 3 (4 (5)))
+(1 2 3 4 (5))
+(1 2 3 4 5)
+(1 2 3 4 5)
+(1 2 3 4 5)
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: můžeme vidět, že další
+&bdquo;zplošťování&ldquo; lineárního seznamu již nemá žádný vliv, ovšem nejedná
+se o chybu.</div></p>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Redukce seznamů s&nbsp;akumulací výsledné hodnoty</h2>
+
+<p>Další velmi užitečnou funkcí vyššího řádu je funkce nazvaná
+<strong>-reduce</strong> a její různé varianty. Při použití těchto funkcí
+dochází k&nbsp;postupné redukci prvků uložených ve vstupní sekvenci, a to
+(postupnou) aplikací zvolené uživatelské funkce na jednotlivé prvky a po
+krocích počítaný mezivýsledek, jenž se většinou nazývá <i>akumulátor</i>.
+Příklad výpočtu faktoriálu deseti postupnou redukcí seznamu (1 2 3 4 5 6 7 8 9
+10):</p>
+
+<pre>
+<strong>(-reduce (lambda (n acc) (* n acc)) (number-sequence 1 10))</strong>
+&nbsp;
+3628800
+</pre>
+
+<p>Ve skutečnosti existuje několik podobně koncipovaných funkcí, které se liší
+například tím, zda je seznam zpracovávána od svého začátku nebo od konce.
+K&nbsp;dispozici jsou i funkce vracející všechny postupně tvořené
+mezivýsledky.</p>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Klasická funkce vyššího řádu <strong>-reduce</strong></h2>
+
+<p>Základní formou &bdquo;reduceru&ldquo; je funkce nazvaná jednoduše
+<strong>-reduce</strong>. Její možnosti si vyzkoušíme na nám již dobře známé
+sekvenci celých čísel, tentokrát v&nbsp;rozsahu 0 až 10 (což se bude dobře
+počítat):</p>
+
+<pre>
+<strong>(setq numbers (number-sequence 0 10))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Pokud této funkci vyššího řádu předáme funkci +, bude postupně aplikována na
+mezivýsledek a každý prvek seznamu. Prvním mezivýsledkem je první prvek
+vstupního seznamu (tedy v&nbsp;našem případě nula):</p>
+
+<pre>
+<strong>(print (-reduce '+ numbers))</strong>
+&nbsp;
+55
+</pre>
+
+<p>Stejného výsledku, i když s&nbsp;větší námahou, dosáhneme použitím anonymní
+funkce. Této funkci se předává jak mezivýsledek (akumulátor), tak i n-tý prvek
+seznamu; seznamem se prochází od začátku:</p>
+
+<pre>
+<strong>(print (-reduce (lambda (acc n) (+ acc n)) numbers))</strong>
+&nbsp;
+55
+</pre>
+
+<p>Funkce <strong>-reduce</strong> existuje i ve variantě anaforického makra
+umožňujícího zkrácený zápis (preferovaná forma, v&nbsp;níž jsou
+<strong>acc</strong> a <strong>it</strong> povinná jména):</p>
+
+<pre>
+<strong>(print (--reduce (+ acc it) numbers))</strong>
+&nbsp;
+55
+</pre>
+
+<p>Relativně snadno můžeme akumulací získat prvek s&nbsp;minimální
+hodnotou:</p>
+
+<pre>
+<strong>(print (--reduce (min acc it) numbers))</strong>
+&nbsp;
+0
+</pre>
+
+<p>Popř.&nbsp;prvek s&nbsp;hodnotou maximální:</p>
+
+<pre>
+<strong>(print (--reduce (max acc it) numbers))</strong>
+&nbsp;
+10
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Další formy funkce <strong>-reduce</strong></h2>
+
+<p>Existují i další formy funkce <strong>-reduce</strong>. Relativně často se
+můžeme setkat s&nbsp;použitím funkce nazvaná <strong>-reduce-r</strong>, která
+seznam taktéž postupně redukuje, ale od konce. Pozor si musíme dát na to, že je
+prohozeno i pořadí argumentů předávaných do redukční funkce, což nás ovšem
+nemusí zajímat ve chvíli, kdy použijeme anaforické makro. Opět začněme sekvencí
+celých čísel:</p>
+
+<pre>
+<strong>(setq numbers (number-sequence 0 10))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>U součtu (dvou prvků) je jedno, z&nbsp;jaké strany je seznam
+zpracováván:</p>
+
+<pre>
+<strong>(print (-reduce-r '+ numbers))</strong>
+&nbsp;
+55
+</pre>
+
+<p>Použití explicitně zapsané anonymní funkce:</p>
+
+<pre>
+<strong>(print (-reduce-r (lambda (n acc) (+ acc n)) numbers))</strong>
+&nbsp;
+55
+</pre>
+
+<p>Samozřejmě můžeme použít anaforické makro a nezajímat se o pořadí
+předávaných argumentů:</p>
+
+<pre>
+<strong>(print (--reduce-r (+ acc it) numbers))</strong>
+&nbsp;
+55
+</pre>
+
+<p>Postupné zjištění prvku s&nbsp;minimální hodnotou:</p>
+
+<pre>
+<strong>(print (--reduce-r (min acc it) numbers))</strong>
+&nbsp;
+0
+</pre>
+
+<p>Postupné zjištění prvku s&nbsp;maximální hodnotou:</p>
+
+<pre>
+<strong>(print (--reduce-r (max acc it) numbers))</strong>
+&nbsp;
+10
+</pre>
+
+<p>Druhá mocnina prvku, jehož čtverec má maximální hodnotu:</p>
+
+<pre>
+<strong>(print (--reduce (max acc (* it it)) numbers))</strong>
+&nbsp;
+100
+</pre>
+
+<p>Pokud seznamem procházíme odzadu, získáme odlišný výsledek (poslední prvek
+se přímo stane počáteční hodnotou akumulátoru):</p>
+
+<pre>
+<strong>(print (--reduce-r (max acc (* it it)) numbers))</strong>
+&nbsp;
+81
+</pre>
+
+<p>Podívejme se nyní na viditelnější rozdíl mezi <strong>-reduce</strong> a
+<strong>-reduce-r</strong>. Vytvoříme si seznam s&nbsp;řetězci "0", "1" až
+"10":</p>
+
+<pre>
+<strong>(setq numbers (-&gt;&gt; (number-sequence 0 10)</strong>
+                   <strong>(--map (format "%s" it))))</strong>
+</pre>
+
+<p>Test, jak seznam skutečně vypadá:</p>
+
+<pre>
+<strong>(print numbers)</strong>
+&nbsp;
+("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
+</pre>
+
+<p>Nyní pomocí <strong>concat</strong> a <strong>--reduce</strong> vytvoříme
+nový řetězec s&nbsp;ciframi:</p>
+
+<pre>
+<strong>(print (--reduce (concat acc "-" it) numbers))</strong>
+&nbsp;
+"0-1-2-3-4-5-6-7-8-9-10"
+</pre>
+
+<p>Pro <strong>--reduce-r</strong> samozřejmě získáme řetězec, kde jsou čísla
+v&nbsp;sestupné řadě:</p>
+
+<pre>
+<strong>(print (--reduce-r (concat acc "-" it) numbers))</strong>
+&nbsp;
+"10-9-8-7-6-5-4-3-2-1-0"
+</pre>
+
+<p>Další formou je funkce <strong>--reduce-from</strong>, u níž se explicitně
+stanoví počáteční hodnota akumulátoru (nepůjde tedy o první prvek):</p>
+
+<pre>
+<strong>(print (--reduce-from (concat acc "-" it) "START" numbers))</strong>
+&nbsp;
+"START-0-1-2-3-4-5-6-7-8-9-10"
+</pre>
+
+<p>Samozřejmě můžeme zkombinovat vlastnosti <strong>-reduce-r</strong> a
+<strong>-reduce-from</strong> realizované ve funkci
+<strong>-reduce-r-from</strong> a v&nbsp;anaforickém makru
+<strong>--reduce-r-from</strong>:</p>
+
+<pre>
+<strong>(print (--reduce-r-from (concat acc "-" it) "START" numbers)</strong>
+&nbsp;
+"START-10-9-8-7-6-5-4-3-2-1-0"
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Získání mezivýsledků variant funkce <strong>-reduce</strong></h2>
+
+<p>V&nbsp;některých situacích se nám mohou hodit i mezivýsledky, které jsou
+postupně funkcemi <strong>-reduce</strong> nebo <strong>-reduce-r</strong>
+získávány. K&nbsp;tomu slouží další funkce nazvané
+<strong>-reductions</strong>, <strong>-reductions-r</strong>,
+<strong>-reductions-from</strong> a konečně
+<strong>-reductions-r-from</strong>. Chování těchto funkcí bude ukázáno na
+dalších příkladech; základem bude (opět) sekvence řetězců "0", "1", "2"
+atd.:</p>
+
+<pre>
+<strong>(setq numbers (-&gt;&gt; (number-sequence 0 10)</strong>
+                   <strong>(--map (format "%s" it))))</strong>
+</pre>
+
+<p>Test, jak seznam skutečně vypadá:</p>
+
+<pre>
+<strong>(print numbers)</strong>
+&nbsp;
+("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
+</pre>
+
+<p>Dále si vytvoříme pomocnou funkci nazvanou <strong>cc</strong>, která získá
+hodnotu akumulátoru a n-tého prvku. Výsledkem bude řetězec získaný spojením
+obou hodnot znakem "-":</p>
+
+<pre>
+<strong>(defun cc</strong>
+  <strong>(acc it)</strong>
+  <strong>(concat acc "-" it))</strong>
+</pre>
+
+<p>Dtto pro varianty &bdquo;-r&ldquo;:</p>
+
+<pre>
+<strong>(defun ccr</strong>
+  <strong>(it acc)</strong>
+  <strong>(concat acc "-" it))</strong>
+</pre>
+
+<p>Řetězce získávané postupným voláním <strong>-reduce</strong>:</p>
+
+<pre>
+<strong>(print (-reductions 'cc numbers))</strong>
+&nbsp;
+("0" "0-1" "0-1-2" "0-1-2-3" "0-1-2-3-4" "0-1-2-3-4-5" "0-1-2-3-4-5-6" "0-1-2-3-4-5-6-7" "0-1-2-3-4-5-6-7-8" "0-1-2-3-4-5-6-7-8-9" "0-1-2-3-4-5-6-7-8-9-10")
+</pre>
+
+<p>Řetězce získávané postupným voláním <strong>-reduce-r</strong> (pozor na
+pořadí, zde se vrací prvky tak, jak se rozbaluje rekurzivní zanoření):</p>
+
+<pre>
+<strong>(print (-reductions-r 'ccr numbers))</strong>
+&nbsp;
+("10-9-8-7-6-5-4-3-2-1-0" "10-9-8-7-6-5-4-3-2-1" "10-9-8-7-6-5-4-3-2" "10-9-8-7-6-5-4-3" "10-9-8-7-6-5-4" "10-9-8-7-6-5" "10-9-8-7-6" "10-9-8-7" "10-9-8" "10-9" "10")
+</pre>
+
+<p>Varianta s&nbsp;&bdquo;-from&ldquo;, na které je patrné, že se skutečně
+nezačíná prvním prvkem seznamu, ale specifikovanou hodnotou:</p>
+
+<pre>
+<strong>(print (-reductions-from 'cc "START" numbers))</strong>
+&nbsp;
+("START" "START-0" "START-0-1" "START-0-1-2" "START-0-1-2-3" "START-0-1-2-3-4" "START-0-1-2-3-4-5" "START-0-1-2-3-4-5-6" "START-0-1-2-3-4-5-6-7" "START-0-1-2-3-4-5-6-7-8" "START-0-1-2-3-4-5-6-7-8-9" "START-0-1-2-3-4-5-6-7-8-9-10")
+</pre>
+
+<p>Kombinace předchozích dvou příkladů:</p>
+
+<pre>
+<strong>(print (-reductions-r-from 'ccr "START" numbers))</strong>
+&nbsp;
+("START-10-9-8-7-6-5-4-3-2-1-0" "START-10-9-8-7-6-5-4-3-2-1" "START-10-9-8-7-6-5-4-3-2" "START-10-9-8-7-6-5-4-3" "START-10-9-8-7-6-5-4" "START-10-9-8-7-6-5" "START-10-9-8-7-6" "START-10-9-8-7" "START-10-9-8" "START-10-9" "START-10" "START")
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: u "-r" variant nesmíme zapomenout na otočení parametrů.</div></p>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Speciální formy &bdquo;reducerů&ldquo;</h2>
+
+<p>V&nbsp;knihovně <strong>dash</strong> nalezneme i speciální formy reducerů,
+které slouží ke specifickým účelům. I tyto formy si ukážeme na několika
+příkladech. Vstupem bude nám již známý seznam s&nbsp;celými čísly, tentokrát
+začneme od jedničky:</p>
+
+<pre>
+<strong>(setq numbers (number-sequence 1 10))</strong>
+&nbsp;
+<strong>(print numbers)</strong>
+&nbsp;
+(1 2 3 4 5 6 7 8 9 10)
+</pre>
+
+<p>Reducer pro výpočet sumy všech prvků nemusíme složitě implementovat, protože
+již existuje:</p>
+
+<pre>
+<strong>(print (-sum numbers))</strong>
+&nbsp;
+55
+</pre>
+
+<p>Podobně lze získat součin všech prvků (proto hodnoty začínaly od jedničky a
+nikoli od nuly):</p>
+
+<pre>
+<strong>(print (-product numbers))</strong>
+&nbsp;
+3628800
+</pre>
+
+<p>Nalezení prvku s&nbsp;minimální hodnotou:</p>
+
+<pre>
+<strong>(print (-min numbers))</strong>
+&nbsp;
+1
+</pre>
+
+<p>Nalezení prvku s&nbsp;maximální hodnotou:</p>
+
+<pre>
+<strong>(print (-max numbers))</strong>
+&nbsp;
+10
+</pre>
+
+<p>Další příklady ukážou použití reducerů <strong>-min-by</strong> a
+<strong>-max-by</strong>, které také hledají minimální a maximální prvky, ovšem
+s&nbsp;využitím uživatelsky definovaného komparátoru.</p>
+
+<p>Vstup:</p>
+
+<pre>
+<strong>(setq words '("Lorem" "ipsum" "dolor" "sit" "amet", "consectetur" "adipiscing" "elit", "sed" "do" "eiusmod" "tempor"))</strong>
+&nbsp;
+<strong>(print words)</strong>
+&nbsp;
+("Lorem" "ipsum" "dolor" "sit" "amet" (\, "consectetur") "adipiscing" "elit" (\, "sed") "do" "eiusmod" "tempor")
+</pre>
+
+<p>Nalezení nejkratšího slova:</p>
+
+<pre>
+<strong>(print (--min-by (> (length it) (length other)) words))</strong>
+&nbsp;
+"do"
+</pre>
+
+<p>Nalezení nejdelšího slova:</p>
+
+<pre>
+<strong>(print (--max-by (> (length it) (length other)) words))</strong>
+&nbsp;
+"adipiscing"
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: předchozí operace jsou samozřejmě
+rychlejší, než snaha o seřazení slov podle délky a posléze výběr prvního nebo
+posledního prvku (zde navíc nebude zaručena stabilita).</div></p>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Konstrukce seznamů pomocí <strong>-iterate</strong></h2>
+
+<p>Velmi užitečnou funkcí je funkce <strong>-iterate</strong>, která slouží ke
+konstrukci seznamů obsahujících hodnoty vygenerované programově. Funkci
+<strong>-iterace</strong> se předávají tři parametry: takzvaná generující
+funkce, počáteční hodnota a celkový počet hodnot. Výsledný seznam obsahuje ve
+svém prvním prvku počáteční hodnotu. Generující funkce je nejprve volána
+s&nbsp;touto počáteční hodnotou a výsledek je opět vložen do generovaného
+seznamu. Potom je tatáž funkce opět volána, ovšem je jí předána dříve
+vygenerovaná hodnota atd. atd. Tímto způsobem lze programově vytvořit například
+některé aritmetické či geometrické řady apod.</p>
+
+<p>Generující funkce vrací svůj vstup, výsledkem bude řada stejných čísel:</p>
+
+<pre>
+<strong>(print (-iterate (lambda (it) it) 0 10))</strong>
+&nbsp;
+(0 0 0 0 0 0 0 0 0 0)
+</pre>
+
+<p>Stejný příklad, ovšem používající anaforické makro:</p>
+
+<pre>
+<strong>(print (--iterate it 0 10))</strong>
+&nbsp;
+(0 0 0 0 0 0 0 0 0 0)
+</pre>
+
+<p>Generující funkce vrací původní hodnotu zvýšenou o jedničku; výsledkem je
+aritmetická řada:</p>
+
+<pre>
+<strong>(print (-iterate (lambda (it) (+ 1 it)) 0 10))</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9)
+</pre>
+
+<p>Stejný příklad, ovšem používající anaforické makro:</p>
+
+<pre>
+<strong>(print (--iterate (+ 1 it) 0 10))</strong>
+&nbsp;
+(0 1 2 3 4 5 6 7 8 9)
+</pre>
+
+<p>Vytvoření řady s&nbsp;mocninami dvojky (musí se začínat hodnotou 1, ne
+0):</p>
+
+<pre>
+<strong>(print (-iterate (lambda (it) (* 2 it)) 1 10))</strong>
+&nbsp;
+(1 2 4 8 16 32 64 128 256 512)
+</pre>
+
+<p>Stejný příklad, ovšem používající anaforické makro:</p>
+
+<pre>
+<strong>(print (--iterate (* 2 it) 1 10))</strong>
+&nbsp;
+(1 2 4 8 16 32 64 128 256 512)
+</pre>
+
+<p>Exponenciální řada s&nbsp;přetečením výsledků :-)</p>
+
+<pre>
+<strong>(print (-iterate (lambda (it) (* it it)) 2 10))</strong>
+&nbsp;
+(2 4 16 256 65536 4294967296 0 0 0 0)
+</pre>
+
+<p>Stejný příklad, ovšem opět používající anaforické makro:</p>
+
+<pre>
+<strong>(print (--iterate (* it it) 2 10))</strong>
+&nbsp;
+(2 4 16 256 65536 4294967296 0 0 0 0)
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: forma <strong>-iterate</strong> má
+v&nbsp;Clojure odlišné chování, protože generuje nekonečnou líně vyhodnocovanou
+sekvenci. V&nbsp;Emacs Lispu je tomu jinak, protože zde musíme dopředu zadat
+počet vygenerovaných hodnot.</div></p>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Threading makra podruhé</h2>
+
+<p>O takzvaných threading makrech <a
+href="https://www.root.cz/clanky/upravy-emacsu-s-emacs-lisp-vsemocne-makro-cl-loop-a-knihovna-dash/#k17">jsme
+se ve stručnosti zmínili již v&nbsp;předchozím článku</a>, ovšem jedná se o tak
+užitečná makra, že si zaslouží poněkud delší popis a uvedení většího množství
+demonstračních příkladů. Víme již, že základní threading makro zapisované znaky
+-&gt; se používá ve chvíli, kdy potřebujeme nahradit relativně málo čitelný
+zápis:</p>
+
+<pre>
+(a (b (c x)))
+</pre>
+
+<p>za zápis:</p>
+
+<pre>
+(-&gt; x c b a)
+</pre>
+
+<p>který můžeme číst &bdquo;hodnotu <strong>x</strong> předej funkci
+<strong>c</strong>, návratovou hodnotu funkce <strong>c</strong> předej do
+funkce <strong>b</strong> a konečně návratovou hodnotu funkce
+<strong>b</strong> předej do funkce <strong>a</strong>. Výsledná hodnota této
+funkce bude současně i výsledkem celého threading makra&ldquo;</p>
+
+<p>Ve skutečnosti nejsme nijak omezeni celkovým počtem funkcí, které jsou do
+makra předány; jediné omezení spočívá v&nbsp;tom, že výsledek předchozí funkce
+se předá do funkce další na prvním místě. Podívejme se na jednoduchý příklad,
+v&nbsp;němž jsou použity pouze funkce s&nbsp;jedním vstupem (a samozřejmě
+s&nbsp;jedním výstupem):</p>
+
+<pre>
+(print
+    (-&gt; '(1 (2 3) 4)
+        -flatten
+        -sum
+        -))
+</pre>
+
+<p>Předchozí forma je čitelnější, než původní &bdquo;lispovský&ldquo;
+zápis:</p>
+
+<pre>
+(print (- (-sum (-flatten '(1 (2 3) 4)))))
+</pre>
+
+<p>Funkce mohou mít i vedlejší efekt, protože vše, co threading makro provádí,
+je &bdquo;pouhá&ldquo; reorganizace zdrojového kódu.</p>
+
+<pre>
+(-&gt; (number-sequence 0 30)
+    length
+    print)
+</pre>
+
+<p>S&nbsp;výsledkem:</p>
+
+<pre>
+31
+</pre>
+
+<p>Popř.&nbsp;poněkud složitější příklad, v&nbsp;němž funkci <strong>+</strong>
+předáme jako první parametr výsledek volání funkce <strong>length</strong>:</p>
+
+<pre>
+(-&gt; (number-sequence 0 30)
+    length
+    (+ 1)
+    print)
+</pre>
+
+<p>S&nbsp;výsledkem:</p>
+
+<pre>
+32
+</pre>
+
+<p>Na předchozím příkladu je nejdůležitější pochopit význam třetího řádku:</p>
+
+<pre>
+    (+ 1)
+</pre>
+
+<p>Ve skutečnosti totiž threading makro předá výsledek předchozí funkce (ať je
+jakýkoli) ihned za volání +, takže se ve skutečnosti provede:</p>
+
+<pre>
+    (+ previous_result 1)
+</pre>
+
+<p>Zkusme si ještě nepatrně složitější příklad s&nbsp;funkcemi akceptujícími
+větší počet parametrů:</p>
+
+<pre>
+(-&gt; '(1 (2 (3 (4 5))))
+    -flatten
+    -sum
+    (+ 1)
+    (* 2 2)
+    print)
+</pre>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Další formy threading maker</h2>
+
+<p>U mnoha výše popsaných funkcí a maker se seznam předává na posledním místě
+(poslední parametr). Proto většinou není možné použít výše uvedené threading
+makro -&gt;, ale makro nazvané -&gt;&gt;:</p>
+
+<pre>
+(-&gt;&gt; '(1 2 3 4 5 6 7 8)
+     (--filter (&lt; it 5))
+     -sum
+     print)
+</pre>
+
+<p>popř.:</p>
+
+<pre>
+(-&gt;&gt; '(1 2 3 4 5 6 7 8)
+     (--filter (&lt; it 5))
+     (--map (* 2 it))
+    -sum
+     print)
+</pre>
+
+<p>V&nbsp;posledním (nejsložitějším) příkladu je použito makro --&gt;, které
+umožňuje postupné probublávání mezivýsledků, podobně, jako je tomu u maker
+předchozích. Ovšem mezivýsledky jsou vkládány na místo, kde je použit symbol
+<strong>it</strong>. Pozor ovšem na to, že v&nbsp;následujícím příkladu má
+<strong>it</strong> dva významy a threading makru patří pouze zvýrazněné
+symboly:</p>
+
+<pre>
+(-&gt;&gt; '(1 2 3 4 5 6 7 8)
+     (--map (format "%s" it) <strong>it</strong>)
+     (--reduce (concat acc "-" it) <strong>it</strong>)
+     (concat "*" <strong>it</strong> "*")
+     print)
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+"*1-2-3-4-5-6-7-8*"
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: všimněte si, že zde nedochází
+k&nbsp;žádným problémům při vnořování maker.</div></p>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Zdrojové kódy většiny dnes popsaných demonstračních příkladů byly uloženy do
+Git repositáře dostupného na adrese <a
+href="https://github.com/tisnik/elisp-examples">https://github.com/tisnik/elisp-examples</a>
+(stále na GitHubu :-). V&nbsp;případě, že nebudete chtít klonovat celý
+repositář (ten je ovšem stále velmi malý, dnes má doslova několik kilobajtů),
+můžete namísto toho použít odkazy na jednotlivé příklady, které naleznete
+v&nbsp;následující tabulce:</p>
+
+<table>
+<tr><th> #</th><th>Demonstrační příklad</th><th>Popis</th><th>Cesta</th></tr>
+<tr><td> 1</td><td>01_dash_filters.el</td><td>filtr realizovaný funkcí <strong>-filter</strong> nebo makrem <strong>--filter</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/01_dash_filters.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/01_dash_filters.el</a></td></tr>
+<tr><td> 2</td><td>02_dash_remove.el</td><td>použití základní funkce <strong>-remove</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/02_dash_remove.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/02_dash_remove.el</a></td></tr>
+<tr><td> 3</td><td>03_dash_remove_item_etc.el</td><td>funkce <strong>-remove-item</strong> a <strong>-remove-at</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/03_dash_remove_item_etc.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/03_dash_remove_item_etc.el</a></td></tr>
+<tr><td> 4</td><td>04_dash_remove_first.el</td><td>použití funkce <strong>-remove-first</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/04_dash_remove_first.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/04_dash_remove_first.el</a></td></tr>
+<tr><td> 5</td><td>05_dash_remove_last.el</td><td>použití funkce <strong>-remove-last</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/05_dash_remove_last.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/05_dash_remove_last.el</a></td></tr>
+<tr><td> 6</td><td>06_dash_take.el</td><td>použití funkce <strong>-take</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/06_dash_take.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/06_dash_take.el</a></td></tr>
+<tr><td> 7</td><td>07_dash_drop.el</td><td>použití funkce <strong>-drop</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/07_dash_drop.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/07_dash_drop.el</a></td></tr>
+<tr><td> 8</td><td>08_dash_take_while.el</td><td>použití funkce <strong>-take-while</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/08_dash_take_while.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/08_dash_take_while.el</a></td></tr>
+<tr><td> 9</td><td>09_dash_drop_while.el</td><td>použití funkce <strong>-drop-while</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/09_dash_drop_while.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/09_dash_drop_while.el</a></td></tr>
+<tr><td>10</td><td>10_dash_concat.el</td><td>spojení seznamů a prvků</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/10_dash_concat.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/10_dash_concat.el</a></td></tr>
+<tr><td>11</td><td>11_dash_flatten.el</td><td>vytvoření &bdquo;plochého&ldquo; seznamu</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/11_dash_flatten.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/11_dash_flatten.el</a></td></tr>
+<tr><td>12</td><td>12_dash_flatten_n.el</td><td>vytvoření &bdquo;plochého&ldquo; seznamu n-té úrovně</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/12_dash_flatten_n.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/12_dash_flatten_n.el</a></td></tr>
+<tr><td>13</td><td>13_dash_reduce.el</td><td>funkce <strong>-reduce</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/13_dash_reduce.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/13_dash_reduce.el</a></td></tr>
+<tr><td>14</td><td>14_dash_reduce-r.el</td><td>další varianty reducerů</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/14_dash_reduce-r.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/14_dash_reduce-r.el</a></td></tr>
+<tr><td>15</td><td>15_dash_reduce-from.el</td><td>další varianty reducerů</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/15_dash_reduce-from.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/15_dash_reduce-from.el</a></td></tr>
+<tr><td>16</td><td>16_dash_reductions.el</td><td>získání produktů vytvářených reducery</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/16_dash_reductions.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/16_dash_reductions.el</a></td></tr>
+<tr><td>17</td><td>17_dash_special_reducers.el</td><td>speciální formy reducerů</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/17_dash_special_reducers.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/17_dash_special_reducers.el</a></td></tr>
+<tr><td>18</td><td>18_dash_iterate.el</td><td>forma <strong>iterate</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/18_dash_iterate.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/18_dash_iterate.el</a></td></tr>
+<tr><td>19</td><td>19_threading_macros.el</td><td>ukázky threading maker</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-4/19_threading_macros.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-4/19_threading_macros.el</a></td></tr>
+</table>
+
+
+
+<p><a name="k19"></a></p>
+<h2 id="k19">19. Literatura</h2>
+
+<ol>
+
+<li>Tutorial for the Common Lisp Loop Macro<br />
+<a href="http://www.ai.sri.com/pkarp/loop.html">http://www.ai.sri.com/pkarp/loop.html</a>
+</li>
+
+<li>Common Lisp's Loop Macro Examples for Beginners<br />
+<a href="http://www.unixuser.org/~euske/doc/cl/loop.html">http://www.unixuser.org/~euske/doc/cl/loop.html</a>
+</li>
+
+<li>A modern list api for Emacs. No 'cl required.<br />
+<a href="https://github.com/magnars/dash.el">https://github.com/magnars/dash.el</a>
+</li>
+
+<li>The LOOP Facility<br />
+<a href="http://www.lispworks.com/documentation/HyperSpec/Body/06_a.htm">http://www.lispworks.com/documentation/HyperSpec/Body/06_a.htm</a>
+</li>
+
+<li>McCarthy<br />
+<i>&bdquo;Recursive functions of symbolic expressions and their computation by machine, part I&ldquo;</i><br />
+1960
+</li>
+
+<li>Guy L. Steele<br />
+<i>&bdquo;History of Scheme&ldquo;</i><br />
+2006, Sun Microsystems Laboratories
+</li>
+
+<li>
+Kolář J., Muller K.:<br />
+<i>&bdquo;Speciální programovací jazyky&ldquo;</i><br />
+Praha 1981
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 9, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., October 1987
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 10, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., September 1988
+</li>
+
+<li>McCarthy, John; Abrahams, Paul W.; Edwards, Daniel J.; Hart, Timothy P.; Levin, Michael I.<br />
+<i>&bdquo;LISP 1.5 Programmer's Manual&ldquo;</i><br />
+MIT Press. ISBN 0 262 130 1 1 4
+</li>
+
+<li>Carl Hewitt; Peter Bishop and Richard Steiger<br />
+<i>&bdquo;A Universal Modular Actor Formalism for Artificial Intelligence&ldquo;</i><br />
+1973
+</li>
+
+<li>Feiman, J.<br />
+<i>&bdquo;The Gartner Programming Language Survey (October 2001)&ldquo;</i><br />
+Gartner Advisory
+</li>
+
+<li>Harold Abelson, Gerald Jay Sussman, Julie Sussman:<br />
+<i>Structure and Interpretation of Computer Programs</i><br />
+MIT Press. 1985, 1996 (a možná vyšel i další přetisk)
+</li>
+
+<li>Paul Graham:<br />
+<i>On Lisp</i><br />
+Prentice Hall, 1993<br />
+Dostupné online na stránce <a href="http://www.paulgraham.com/onlisptext.html">http://www.paulgraham.com/onlisptext.html</a>
+</li>
+
+<li>David S. Touretzky<br />
+<i>Common LISP: A Gentle Introduction to Symbolic Computation (Dover Books on Engineering)</i><br />
+</li>
+
+<li>Peter Norvig<br />
+<i>Paradigms of Artificial Intelligence Programming: Case Studies in Common Lisp</i>
+</li>
+
+</ol>
+
+
+
+<p><a name="k20"></a></p>
+<h2 id="k20">20. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>The mapcar Function (An Introduction to Programming in Emacs Lisp)<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/mapcar.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/mapcar.html</a>
+</li>
+
+<li>Anaphoric macro<br />
+<a href="https://en.wikipedia.org/wiki/Anaphoric_macro">https://en.wikipedia.org/wiki/Anaphoric_macro</a>
+</li>
+
+<li>Some Common Lisp Loop Macro Examples<br />
+<a href="https://www.youtube.com/watch?v=3yl8o6r_omw">https://www.youtube.com/watch?v=3yl8o6r_omw</a>
+</li>
+
+<li>A Guided Tour of Emacs<br />
+<a href="https://www.gnu.org/software/emacs/tour/">https://www.gnu.org/software/emacs/tour/</a>
+</li>
+
+<li>The Roots of Lisp<br />
+<a href="http://www.paulgraham.com/rootsoflisp.html">http://www.paulgraham.com/rootsoflisp.html</a>
+</li>
+
+<li>Evil (Emacs Wiki)<br />
+<a href="https://www.emacswiki.org/emacs/Evil">https://www.emacswiki.org/emacs/Evil</a>
+</li>
+
+<li>Evil (na GitHubu)<br />
+<a href="https://github.com/emacs-evil/evil">https://github.com/emacs-evil/evil</a>
+</li>
+
+<li>Evil (na stránkách repositáře MELPA)<br />
+<a href="https://melpa.org/#/evil">https://melpa.org/#/evil</a>
+</li>
+
+<li>Evil Mode: How I Switched From VIM to Emacs<br />
+<a href="https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html">https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html</a>
+</li>
+
+<li>GNU Emacs (home page)<br />
+<a href="https://www.gnu.org/software/emacs/">https://www.gnu.org/software/emacs/</a>
+</li>
+
+<li>GNU Emacs (texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs">http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs</a>
+</li>
+
+<li>An Introduction To Using GDB Under Emacs<br />
+<a href="http://tedlab.mit.edu/~dr/gdbintro.html">http://tedlab.mit.edu/~dr/gdbintro.html</a>
+</li>
+
+<li>An Introduction to Programming in Emacs Lisp<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html</a>
+</li>
+
+<li>27.6 Running Debuggers Under Emacs<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html">https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html</a>
+</li>
+
+<li>GdbMode<br />
+<a href="http://www.emacswiki.org/emacs/GdbMode">http://www.emacswiki.org/emacs/GdbMode</a>
+</li>
+
+<li>Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Emacs">https://en.wikipedia.org/wiki/Emacs</a>
+</li>
+
+<li>Emacs timeline<br />
+<a href="http://www.jwz.org/doc/emacs-timeline.html">http://www.jwz.org/doc/emacs-timeline.html</a>
+</li>
+
+<li>Emacs Text Editors Family<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily">http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse (část 2: vyhledávání a nahrazování textu)<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/</a>
+</li>
+
+<li>Emacs/Evil-mode - A basic reference to using evil mode in Emacs<br />
+<a href="http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet">http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet</a>
+</li>
+
+<li>From Vim to Emacs+Evil chaotic migration guide<br />
+<a href="https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/">https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/</a>
+</li>
+
+<li>Introduction to evil-mode {video)<br />
+<a href="https://www.youtube.com/watch?v=PeVQwYUxYEg">https://www.youtube.com/watch?v=PeVQwYUxYEg</a>
+</li>
+
+<li>EINE (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/EINE">http://www.emacswiki.org/emacs/EINE</a>
+</li>
+
+<li>EINE (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EINE">http://texteditors.org/cgi-bin/wiki.pl?EINE</a>
+</li>
+
+<li>ZWEI (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/ZWEI">http://www.emacswiki.org/emacs/ZWEI</a>
+</li>
+
+<li>ZWEI (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?ZWEI">http://texteditors.org/cgi-bin/wiki.pl?ZWEI</a>
+</li>
+
+<li>Zmacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Zmacs">https://en.wikipedia.org/wiki/Zmacs</a>
+</li>
+
+<li>Zmacs (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?Zmacs">http://texteditors.org/cgi-bin/wiki.pl?Zmacs</a>
+</li>
+
+<li>TecoEmacs (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/TecoEmacs">http://www.emacswiki.org/emacs/TecoEmacs</a>
+</li>
+
+<li>Micro Emacs<br />
+<a href="http://www.emacswiki.org/emacs/MicroEmacs">http://www.emacswiki.org/emacs/MicroEmacs</a>
+</li>
+
+<li>Micro Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/MicroEMACS">https://en.wikipedia.org/wiki/MicroEMACS</a>
+</li>
+
+<li>EmacsHistory<br />
+<a href="http://www.emacswiki.org/emacs/EmacsHistory">http://www.emacswiki.org/emacs/EmacsHistory</a>
+</li>
+
+<li>Seznam editorů s ovládáním podobným Emacsu či kompatibilních s příkazy Emacsu<br />
+<a href="http://www.finseth.com/emacs.html">http://www.finseth.com/emacs.html</a>
+</li>
+
+<li>evil-numbers<br />
+<a href="https://github.com/cofi/evil-numbers">https://github.com/cofi/evil-numbers</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (1.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (2.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (3): Nemiver<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (4): KDbg<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (5): ladění aplikací v editorech Emacs a Vim<br />
+<a href="https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/">https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/</a>
+</li>
+
+<li>Org mode<br />
+<a href="https://orgmode.org/">https://orgmode.org/</a>
+</li>
+
+<li>The Org Manual<br />
+<a href="https://orgmode.org/manual/index.html">https://orgmode.org/manual/index.html</a>
+</li>
+
+<li>Kakoune (modální textový editor)<br />
+<a href="http://kakoune.org/">http://kakoune.org/</a>
+</li>
+
+<li>Vim-style keybinding in Emacs/Evil-mode<br />
+<a href="https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8">https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8</a>
+</li>
+
+<li>Emacs - jak začít<br />
+<a href="http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit">http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit</a>
+</li>
+
+<li>Programovací jazyk LISP a LISP machines<br />
+<a href="https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/">https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/</a>
+</li>
+
+<li>Evil-surround<br />
+<a href="https://github.com/emacs-evil/evil-surround">https://github.com/emacs-evil/evil-surround</a>
+</li>
+
+<li>Spacemacs<br />
+<a href="http://spacemacs.org/">http://spacemacs.org/</a>
+</li>
+
+<li>Lisp: Common Lisp, Racket, Clojure, Emacs Lisp<br />
+<a href="http://hyperpolyglot.org/lisp">http://hyperpolyglot.org/lisp</a>
+</li>
+
+<li>Common Lisp, Scheme, Clojure, And Elisp Compared<br />
+<a href="http://irreal.org/blog/?p=725">http://irreal.org/blog/?p=725</a>
+</li>
+
+<li>Does Elisp Suck?<br />
+<a href="http://irreal.org/blog/?p=675">http://irreal.org/blog/?p=675</a>
+</li>
+
+<li>Emacs pro mírně pokročilé (9): Elisp<br />
+<a href="https://www.root.cz/clanky/emacs-elisp/">https://www.root.cz/clanky/emacs-elisp/</a>
+</li>
+
+<li>If I want to learn lisp, are emacs and elisp a good choice?<br />
+<a href="https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/">https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/</a>
+</li>
+
+<li>Clojure(Script) Interactive Development Environment that Rocks!<br />
+<a href="https://github.com/clojure-emacs/cider">https://github.com/clojure-emacs/cider</a>
+</li>
+
+<li>An Introduction to Emacs Lisp<br />
+<a href="https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html">https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html</a>
+</li>
+
+<li>Emergency Elisp<br />
+<a href="http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html">http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html</a>
+</li>
+
+<li>Racket<br />
+<a href="https://racket-lang.org/">https://racket-lang.org/</a>
+</li>
+
+<li>The Racket Manifesto<br />
+<a href="http://felleisen.org/matthias/manifesto/">http://felleisen.org/matthias/manifesto/</a>
+</li>
+
+<li>MIT replaces Scheme with Python<br />
+<a href="https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/">https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/</a>
+</li>
+
+<li>Adventures in Advanced Symbolic Programming<br />
+<a href="http://groups.csail.mit.edu/mac/users/gjs/6.945/">http://groups.csail.mit.edu/mac/users/gjs/6.945/</a>
+</li>
+
+<li>Why MIT Switched from Scheme to Python (2009)<br />
+<a href="https://news.ycombinator.com/item?id=14167453">https://news.ycombinator.com/item?id=14167453</a>
+</li>
+
+<li>Starodávná stránka XLispu<br />
+<a href="http://www.xlisp.org/">http://www.xlisp.org/</a>
+</li>
+
+<li>AutoLISP<br />
+<a href="https://en.wikipedia.org/wiki/AutoLISP">https://en.wikipedia.org/wiki/AutoLISP</a>
+</li>
+
+<li>Seriál PicoLisp: minimalistický a výkonný interpret Lispu<br />
+<a href="https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/">https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/</a>
+</li>
+
+<li>Common Lisp<br />
+<a href="https://common-lisp.net/">https://common-lisp.net/</a>
+</li>
+
+<li>Getting Going with Common Lisp<br />
+<a href="https://cliki.net/Getting%20Started">https://cliki.net/Getting%20Started</a>
+</li>
+
+<li>Online Tutorial (Common Lisp)<br />
+<a href="https://cliki.net/online%20tutorial">https://cliki.net/online%20tutorial</a>
+</li>
+
+<li>Guile Emacs<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacs">https://www.emacswiki.org/emacs/GuileEmacs</a>
+</li>
+
+<li>Guile Emacs History<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacsHistory">https://www.emacswiki.org/emacs/GuileEmacsHistory</a>
+</li>
+
+<li>Guile is a programming language<br />
+<a href="https://www.gnu.org/software/guile/">https://www.gnu.org/software/guile/</a>
+</li>
+
+<li>MIT Scheme<br />
+<a href="http://groups.csail.mit.edu/mac/projects/scheme/">http://groups.csail.mit.edu/mac/projects/scheme/</a>
+</li>
+
+<li>SIOD: Scheme in One Defun<br />
+<a href="http://people.delphiforums.com/gjc//siod.html">http://people.delphiforums.com/gjc//siod.html</a>
+</li>
+
+<li>CommonLispForEmacs<br />
+<a href="https://www.emacswiki.org/emacs/CommonLispForEmacs">https://www.emacswiki.org/emacs/CommonLispForEmacs</a>
+</li>
+
+<li>Elisp: print, princ, prin1, format, message<br />
+<a href="http://ergoemacs.org/emacs/elisp_printing.html">http://ergoemacs.org/emacs/elisp_printing.html</a>
+</li>
+
+<li>Special Forms in Lisp<br />
+<a href="http://www.nhplace.com/kent/Papers/Special-Forms.html">http://www.nhplace.com/kent/Papers/Special-Forms.html</a>
+</li>
+
+<li>Basic Building Blocks in LISP<br />
+<a href="https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm">https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm</a>
+</li>
+
+<li>Introduction to LISP - University of Pittsburgh<br />
+<a href="https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf">https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf</a>
+</li>
+
+<li>Why don't people use LISP<br />
+<a href="https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/">https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/</a>
+</li>
+
+<li>Structured program theorem<br />
+<a href="https://en.wikipedia.org/wiki/Structured_program_theorem">https://en.wikipedia.org/wiki/Structured_program_theorem</a>
+</li>
+
+<li>Clojure: API Documentation<br />
+<a href="https://clojure.org/api/api">https://clojure.org/api/api</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2018</small></p>
+</body>
+</html>
+
