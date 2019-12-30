@@ -1,0 +1,1814 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Úpravy Emacsu s Emacs Lisp: dokončení popisu Emacs Lispu</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Úpravy Emacsu s Emacs Lisp: dokončení popisu Emacs Lispu</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>V posledním článku, který se bude zabývat výhradně Emacs Lispem a nikoli samotným Emacsem, si popíšeme ostatní datové typy, s&nbsp;nimiž se v&nbsp;Emacs Lispu setkáme. V&nbsp;první řadě se jedná o vektory, pole, asociativní pole a řetězce, dále pak o typy poskytované editorem Emacs.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Úpravy Emacsu s&nbsp;Emacs Lisp: dokončení popisu Emacs Lispu</a></p>
+<p><a href="#k02">2. Sekvence &ndash; seznamy a pole</a></p>
+<p><a href="#k03">3. Operace nad sekvencemi: predikát, kopie, získání prvku a délky sekvence</a></p>
+<p><a href="#k04">4. Konstruktory vektorů</a></p>
+<p><a href="#k05">5. Další funkce určené pro práci s&nbsp;vektory</a></p>
+<p><a href="#k06">6. Základní funkce pro práci s&nbsp;poli</a></p>
+<p><a href="#k07">7. Čtení a zápis prvků polí</a></p>
+<p><a href="#k08">8. Kopie seznamů a polí</a></p>
+<p><a href="#k09">9. Základní vlastnosti řetězců</a></p>
+<p><a href="#k10">10. Kódy znaků v&nbsp;Emacsu</a></p>
+<p><a href="#k11">11. Regulární výrazy</a></p>
+<p><a href="#k12">12. Nahrazení části řetězce jiným obsahem</a></p>
+<p><a href="#k13">13. Hešovací tabulky</a></p>
+<p><a href="#k14">14. Konstruktor hešovacích tabulek</a></p>
+<p><a href="#k15">15. Funkce pro práci s&nbsp;hešovacími tabulkami, řešení kolize klíčů</a></p>
+<p><a href="#k16">16. Funkce <strong>maphash</strong></a></p>
+<p><a href="#k17">17. Asociativní seznamy a seznamy vlastností</a></p>
+<p><a href="#k18">18. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k19">19. Literatura</a></p>
+<p><a href="#k20">20. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Úpravy Emacsu s&nbsp;Emacs Lisp: dokončení popisu Emacs Lispu</h2>
+
+<p>Na předchozí čtyři články, v&nbsp;nichž jsme se seznámili jak se základy
+programovacího jazyka Emacs Lisp [<a
+href="https://www.root.cz/clanky/upravy-emacsu-a-tvorba-novych-modulu-s-vyuzitim-emacs-lispu/">1</a>]
+[<a
+href="https://www.root.cz/clanky/upravy-emacsu-s-emacs-lisp-zakladni-konstrukce-jazyka/">2</a>],
+tak i <a
+href="https://www.root.cz/clanky/upravy-emacsu-s-emacs-lisp-vsemocne-makro-cl-loop-a-knihovna-dash/">s&nbsp;užitečným
+makrem cl-loop</a> a <a
+href="https://www.root.cz/clanky/upravy-emacsu-s-emacs-lisp-moznosti-nabizene-knihovnou-dash/">s&nbsp;knihovnou
+Dash</a>, dnes navážeme. Popíšeme si totiž všechny další strukturované datové
+typy, s&nbsp;nimiž se v&nbsp;tomto programovacím jazyce můžeme setkat. Jedná se
+zejména o <a href="#k04">vektory</a> a taktéž o <a href="#k09">řetězce</a>,
+které mají hodně společného. S&nbsp;řetězci samozřejmě souvisí funkce pro
+vyhledání podle <a href="#k11">regulárního výrazu</a> či <a href="#k12">náhrada
+na základě regulárního výrazu</a>. Nesmíme ovšem zapomenout ani na velmi
+užitečné <a href="#k13">hešovací tabulky</a>, <a href="#k17">asociativní
+seznamy</a> a <a href="#k17">seznamy vlastností</a>.</p>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Sekvence &ndash; seznamy a pole</h2>
+
+<p>V&nbsp;Emacs Lispu se setkáme s&nbsp;pojmem &bdquo;sekvence&ldquo;. Jedná se
+o obecnější označení seznamů (<i>list</i>) a polí (<i>array</i>), přičemž
+seznamy již známe a víme, že jsou plnohodnotným LISPovským datovým typem (navíc
+díky homoikonicitě je samotný program reprezentován seznamem). Pole ovšem není
+konkrétním datovým typem, ale označením pro skupinu dalších typů, konkrétně
+vektorů (<i>vector</i>), řetězců (<i>string</i>) a speciálních typů, mezi něž
+patří především <strong>bool-vector</strong> a <strong>char-table</strong>.
+Vztahy mezi obecnými typy a typy konkrétními je naznačen na následujícím
+obrázku:</p>
+
+*** image ***
+<p><i>Obrázek 1: Hierarchie sekvenčních datových typů v&nbsp;Emacs Lispu. Ve
+skutečnosti existují čtyři konkrétní implementace polí, protože k&nbsp;vektorům
+a řetězcům je možné přidat i poněkud speciální typy
+<strong>bool-vector</strong> a <strong>char-table</strong> zmíněné
+v&nbsp;předchozím textu.</i></p>
+
+<p>V&nbsp;následující tabulce jsou vypsány některé společné vlastnosti ale i
+obecně platné rozdíly mezi seznamy a poli (vektory, řetězci):</p>
+
+<table>
+<tr><th>Vlastnost</th><th>Seznamy</th><th>Vektory</th><th>Řetězce</th></tr>
+<tr><td>typ struktury</td><td>heterogenní</td><td>heterogenní</td><td>je homogenní</td></tr>
+<tr><td>přístup k prvku přes index</td><td>O(n), lineární</td><td>O(1), konstantní</td><td>O(1), konstantní</td></tr>
+<tr><td>index prvního prvku</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>přidání prvku na začátek struktury</td><td>lze</td><td>nelze</td><td>nelze</td></tr>
+<tr><td>odebrání prvního prvku ze struktury</td><td>lze</td><td>nelze</td><td>nelze</td></tr>
+<tr><td>konstruktor</td><td>'(prvek prvek prvek}</td><td>[prvek prvek prvek]</td><td>"řetězec"</td></tr>
+<tr><td>velikost při konstrukci</td><td>nemusí být známá</td><td>musí být známá</td><td>musí být známá</td></tr>
+</table>
+
+<p><div class="rs-tip-major">Poznámka: zde je nutno poznamenat, že například
+v&nbsp;programovacím jazyku Clojure jsou vektory <a
+href="https://www.root.cz/clanky/programovaci-jazyk-clojure-triky-pri-praci-s-kolekcemi/#k06">implementovány
+odlišně</a> a při přidávání a ubírání prvků je možné sdílet strukturu původního
+vektoru (structural sharing). Přístup k&nbsp;prvkům však již z&nbsp;tohoto
+důvodu není striktně konstantní, i když složitost je velmi nízká a prakticky se
+blíží ke složitosti konstantní: O(log<sub>32</sub>N).</div></p>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Operace nad sekvencemi: predikát, kopie, získání prvku a délky sekvence</h2>
+
+<p>Pro práci se všemi typy sekvencí (seznam, vektor, řetězec, ...) existuje
+čtveřice obecných funkcí. Především se jedná o test, zda je nějaká hodnota
+libovolnou sekvencí, dále o funkci pro zjištění délky sekvence, přístup
+k&nbsp;n-tému prvku přes jeho index a konečně o funkci vytvářející kopii
+sekvence stejného typu:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis</th></tr>
+<tr><td>sequencep</td><td>predikát vracející <strong>t</strong> pouze tehdy, pokud je mu předána libovolná sekvence</td></tr>
+<tr><td>length</td><td>výpočet délky sekvence (funkce může být relativně pomalá pro seznamy)</td></tr>
+<tr><td>elt</td><td>vrátí n-tý prvek v&nbsp;sekvenci, pokud má samozřejmě sekvence alespoň n prvků (indexuje se od nuly)</td></tr>
+<tr><td>copy-sequence</td><td>kopie sekvence, ovšem nikoli hluboká kopie (ozřejmíme si později)</td></tr>
+</table>
+
+<p>Nejprve si vytvořme tři sekvence, každou jiného typu &ndash; seznam, vektor,
+řetězec:</p>
+
+<pre>
+<strong>(setq l1 '(1 2 3 4 5))</strong>
+<strong>(setq v1 [1 2 3 4 5])</strong>
+<strong>(setq s1 "Hello")</strong>
+</pre>
+
+<p>Dále si vytvoříme tři prázdné sekvence:</p>
+
+<pre>
+<strong>(setq l2 '())</strong>
+<strong>(setq v2 [])</strong>
+<strong>(setq s2 "")</strong>
+</pre>
+
+<p>Nyní můžeme predikátem <strong>sequencep</strong> snadno zjistit, že všech
+šest proměnných referencuje nějakou sekvenci:</p>
+
+<pre>
+<strong>(print (sequencep l1))</strong>
+<strong>(print (sequencep v1))</strong>
+<strong>(print (sequencep s1))</strong>
+<strong>(print (sequencep l2))</strong>
+<strong>(print (sequencep v2))</strong>
+<strong>(print (sequencep s2))</strong>
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+t
+t
+t
+t
+t
+t
+</pre>
+
+<p>Zjištění délky sekvencí funkcí <strong>length</strong>:</p>
+
+<pre>
+<strong>(print (length l1))</strong>
+<strong>(print (length v1))</strong>
+<strong>(print (length s1))</strong>
+<strong>(print (length l2))</strong>
+<strong>(print (length v2))</strong>
+<strong>(print (length s2))</strong>
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+5
+5
+5
+0
+0
+0
+</pre>
+
+<p>Přístup ke třetímu popř.&nbsp;ke 101 prvku (ten neexistuje):</p>
+
+<pre>
+<strong>(print (elt l1 2))</strong>
+<strong>(print (elt v1 2))</strong>
+<strong>(print (elt s1 2))</strong>
+&nbsp;
+<strong>(print (elt l2 100))</strong>
+<strong>(print (elt v2 100))</strong>
+<strong>(print (elt s2 100))</strong>
+</pre>
+
+<p>S&nbsp;výsledky (povšimněte si, že prázdný seznam je zpracován speciálním
+způsobem, protože je roven <strong>nil</strong>):</p>
+
+<pre>
+3
+3
+108
+&nbsp;
+nil
+Args out of range: [], 100
+</pre>
+
+<p>A konečně můžeme získat kopie sekvencí s&nbsp;využitím funkce
+<strong>copy-sequence</strong>:</p>
+
+<pre>
+<strong>(setq l1 '(1 2 3 4 5))</strong>
+<strong>(setq v1 [1 2 3 4 5])</strong>
+<strong>(setq s1 "Hello")</strong>
+&nbsp;
+<strong>(setq l2 (copy-sequence l1))</strong>
+<strong>(setq v2 (copy-sequence v1))</strong>
+<strong>(setq s2 (copy-sequence s1))</strong>
+&nbsp;
+<strong>(print (sequencep l1))</strong>
+<strong>(print (sequencep v1))</strong>
+<strong>(print (sequencep s1))</strong>
+<strong>(print (sequencep l2))</strong>
+<strong>(print (sequencep v2))</strong>
+<strong>(print (sequencep s2))</strong>
+&nbsp;
+<strong>(print "-----------------------------------------")</strong>
+&nbsp;
+<strong>(print l1)</strong>
+<strong>(print v1)</strong>
+<strong>(print s1)</strong>
+<strong>(print l2)</strong>
+<strong>(print v2)</strong>
+<strong>(print s2)</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+t
+t
+t
+t
+t
+t
+"-----------------------------------------"
+(1 2 3 4 5)
+[1 2 3 4 5]
+"Hello"
+(1 2 3 4 5)
+[1 2 3 4 5]
+"Hello"
+</pre>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Konstruktory vektorů</h2>
+
+<p>V&nbsp;této kapitole se nejprve zmíníme o základních vlastnostech takzvaných
+vektorů:</p>
+
+<ol>
+
+<li>Vektory obsahují uspořádanou sekvenci hodnot. Tato sekvence zachovává
+pořadí prvků určené uživatelem (na rozdíl od množin atd.)</li>
+
+<li>Prvky vektorů mohou být libovolného a od sebe odlišného typu,
+tj.&nbsp;jedná se o heterogenní datovou strukturu (na rozdíl od polí
+v&nbsp;některých jiných programovacích jazycích).</li>
+
+<li>Hodnotu prvku lze za určitých okolností měnit, vektor tedy není striktně
+neměnitelný (<i>immutable</i>).</li>
+
+<li>Prvky však nelze ani přidávat ani ubírat, takže tvar vektoru (<i>shape</i>)
+je zachován. Touto vlastností se vektory přibližují klasickým polím
+z&nbsp;jiných programovacích jazyků.</li>
+
+</ol>
+
+<p>Konstrukci vektoru lze provést buď zápisem <strong>[prvek prvek
+prvek]</strong>, nebo je možné použít jednu z&nbsp;funkcí pojmenovaných
+<strong>vector</strong> a <strong>make-vector</strong>:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis funkce</th></tr>
+<tr><td>vector</td><td>vytvoří vektor z&nbsp;předaných prvků</td></tr>
+<tr><td>make-vector</td><td>vytvoří vektor opakováním zadaného prvku</td></tr>
+</table>
+
+<p>Podívejme se nyní na příklad, v&nbsp;němž je vytvořeno sedm vektorů, včetně
+vektoru prázdného a vektoru nehomogenního (s&nbsp;různými typy prvků):</p>
+
+<pre>
+<strong>(setq v1 [1 2 3 4 5])</strong>
+<strong>(setq v2 [])</strong>
+<strong>(setq v3 (vector))</strong>
+<strong>(setq v4 (vector 1 2 3 4 5))</strong>
+<strong>(setq v5 (vector '1 :2 "3" '(4 5) [6 7]))</strong>
+<strong>(setq v6 (make-vector 10 "foo"))</strong>
+<strong>(setq v7 (make-vector 0 "foo"))</strong>
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: povšimněte si, že funkci
+<strong>make-vector</strong> musíte předat počet prvků, který ovšem může být i
+nulový (nikoli však záporný).</div></p>
+
+<p>Výpis hodnot všech vektorů zajistí funkce <strong>print</strong>:</p>
+
+<pre>
+<strong>(print v1)</strong>
+<strong>(print v2)</strong>
+<strong>(print v3)</strong>
+<strong>(print v4)</strong>
+<strong>(print v5)</strong>
+<strong>(print v6)</strong>
+<strong>(print v7)</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+[1 2 3 4 5]
+[]
+[]
+[1 2 3 4 5]
+[1 :2 "3" (4 5) [6 7]]
+["foo" "foo" "foo" "foo" "foo" "foo" "foo" "foo" "foo" "foo"]
+[]
+</pre>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Další funkce určené pro práci s&nbsp;vektory</h2>
+
+<p>Mezi další funkce určené pro zpracování vektorů patří především tato
+čtveřice:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis funkce</th></tr>
+<tr><td>vectorp</td><td>test (predikát), zda je hodnota vektorem</td></tr>
+<tr><td>vconcat</td><td>všechny prvky předaných sekvencí se transformují do vektoru</td></tr>
+<tr><td>length</td><td>výpočet délky vektoru (již vlastně známe)</td></tr>
+<tr><td>append</td><td>konverze vektoru na seznam s&nbsp;případným připojením prvku</td></tr>
+</table>
+
+<p>Všechny tyto funkce budou ukázány v&nbsp;následujících příkladech.</p>
+
+<p>Vytvoříme tři sekvence, ovšem jen jedna sekvence bude vektorem:</p>
+
+<pre>
+<strong>(setq s1 '(1 2 3 4))</strong>
+<strong>(setq v1 [1 2 3 4])</strong>
+<strong>(setq n1 42)</strong>
+<strong>(setq str1 "Hello")</strong>
+</pre>
+
+<p>Použití predikátu <strong>vectorp</strong>:</p>
+
+<pre>
+<strong>(print (vectorp s1))</strong>
+<strong>(print (vectorp v1))</strong>
+<strong>(print (vectorp n1))</strong>
+<strong>(print (vectorp str1))</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+nil
+t
+nil
+nil
+</pre>
+
+<p>Vytvoření různých vektorů konstruktorem <strong>vector</strong>.</p>
+
+<pre>
+<strong>(setq v3 (vector))</strong>
+<strong>(setq v4 (vector 1 2 3 4))</strong>
+<strong>(setq v5 (vector '1 :2 "3" '(4 5) [6 7]))</strong>
+</pre>
+
+<p>Opětovné použití predikátu <strong>vectorp</strong>:</p>
+
+<pre>
+<strong>(print (vectorp v3))</strong>
+<strong>(print (vectorp v4))</strong>
+<strong>(print (vectorp v5))</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+t
+t
+t
+</pre>
+
+<p>Použití funkce <strong>vconcat</strong> (povšimněte si různé struktury
+prvků):</p>
+
+<pre>
+<strong>(setq v1 (vconcat '(A B C) '(D E F)))</strong>
+<strong>(setq v2 (vconcat [A B C] '(D E F)))</strong>
+<strong>(setq v3 (vconcat '() []))</strong>
+<strong>(setq v4 (vconcat [[1 2] [3 4]]))</strong>
+<strong>(setq v5 (vconcat '() [[1 2] [3 4]]))</strong>
+&nbsp;
+<strong>(print v1)</strong>
+<strong>(print v2)</strong>
+<strong>(print v3)</strong>
+<strong>(print v4)</strong>
+<strong>(print v5)</strong>
+</pre>
+
+<p>Výsledky (na nejvyšší úrovni byly původní struktury
+&bdquo;zploštěny&ldquo;):</p>
+
+<pre>
+[A B C D E F]
+[A B C D E F]
+[]
+[[1 2] [3 4]]
+[[1 2] [3 4]]
+</pre>
+
+<p>Převod různých vektorů na seznamy pomocí funkce <strong>append</strong>:</p>
+
+<pre>
+<strong>(setq v1 [1 2 3 4 5])</strong>
+<strong>(setq v2 [])</strong>
+<strong>(setq v3 (vector))</strong>
+<strong>(setq v4 (vector 1 2 3 4 5))</strong>
+<strong>(setq v5 (vector '1 :2 "3" '(4 5) [6 7]))</strong>
+<strong>(setq v6 (make-vector 10 "foo"))</strong>
+<strong>(setq v7 (make-vector 0 "foo"))</strong>
+&nbsp;
+<strong>(print (append v1 nil))</strong>
+<strong>(print (append v2 nil))</strong>
+<strong>(print (append v3 nil))</strong>
+<strong>(print (append v4 nil))</strong>
+<strong>(print (append v5 nil))</strong>
+<strong>(print (append v6 nil))</strong>
+<strong>(print (append v7 nil))</strong>
+</pre>
+
+<p>Výsledky jsou nyní předvídatelné:</p>
+
+<pre>
+(1 2 3 4 5)
+nil
+nil
+(1 2 3 4 5)
+(1 :2 "3" (4 5) [6 7])
+("foo" "foo" "foo" "foo" "foo" "foo" "foo" "foo" "foo" "foo")
+nil
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: opět můžeme vidět, že prázdný seznam je
+ekvivalentní hodnotě <strong>nil</strong>.</div></p>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Základní funkce pro práci s&nbsp;poli</h2>
+
+<p>Dalšími funkcemi, s&nbsp;nimiž se seznámíme, jsou funkce použitelné pro
+práci s&nbsp;poli, tj.&nbsp;především s&nbsp;vektory a s&nbsp;řetězci. Nejedná
+se tedy o funkce tak specializované, jako funkce popsané <a
+href="#k05">v&nbsp;předchozí kapitole</a>, na druhou stranu ovšem nejsou tak
+obecné, jako funkce pro práci s&nbsp;libovolnou sekvencí:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis funkce</th></tr>
+<tr><td>arrayp</td><td>test (predikát), zda je hodnot nějakým polem</td></tr>
+<tr><td>aref</td><td>získání reference na i-tý prvek v&nbsp;poli (indexace)</td></tr>
+<tr><td>aset</td><td>zápis do i-tého prvku v&nbsp;poli</td></tr>
+<tr><td>fillarray</td><td>vyplnění celého pole prvky se shodnou hodnotou</td></tr>
+</table>
+
+<p><div class="rs-tip-major">Poznámka: opět pro porovnání &ndash; v&nbsp;jazyku
+Clojure existují funkce pojmenované <strong>aset</strong> a
+<strong>aget</strong>, které slouží pro zápis popř.&nbsp;pro čtení prvků
+z&nbsp;javovských polí.</div></p>
+
+<p>Všechny čtyři výše popsané funkce si samozřejmě opět otestujeme:</p>
+
+<pre>
+<strong>(setq s1 '(1 2 3 4))</strong>
+<strong>(setq v1 [1 2 3 4])</strong>
+<strong>(setq n1 42)</strong>
+<strong>(setq str1 "Hello")</strong>
+&nbsp;
+<i>; otestování predikátu arrayp</i>
+<strong>(print (arrayp s1))</strong>
+<strong>(print (arrayp v1))</strong>
+<strong>(print (arrayp n1))</strong>
+<strong>(print (arrayp str1))</strong>
+&nbsp;
+(print "-----------------------------------------")
+&nbsp;
+<i>; predikát pro vektory</i>
+<strong>(setq v3 (vector))</strong>
+<strong>(setq v4 (vector 1 2 3 4))</strong>
+<strong>(setq v5 (vector '1 :2 "3" '(4 5) [6 7]))</strong>
+&nbsp;
+<strong>(print (arrayp v3))</strong>
+<strong>(print (arrayp v4))</strong>
+<strong>(print (arrayp v5))</strong>
+</pre>
+
+<p>Výsledky jsou předvídatelné:</p>
+
+<pre>
+nil
+t
+nil
+t
+"-----------------------------------------"
+t
+t
+t
+</pre>
+
+<p>Otestování funkce <strong>fillarray</strong> aplikované na vektor čísel a
+řetězec:</p>
+
+<pre>
+<strong>(setq v1 [1 2 3 4])</strong>
+<strong>(setq str1 "Hello")</strong>
+&nbsp;
+<strong>(print v1)</strong>
+<strong>(print str1)</strong>
+&nbsp;
+<strong>(print "-----------------------------------------")</strong>
+&nbsp;
+<strong>(fillarray v1 0)</strong>
+<strong>(fillarray str1 ?*)</strong>
+&nbsp;
+<strong>(print v1)</strong>
+<strong>(print str1)</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+[1 2 3 4]
+"Hello"
+"-----------------------------------------"
+[0 0 0 0]
+"*****"
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: zde můžeme vidět, že se řetězce skutečně
+chovají stejně jako vektory. Ve skutečnosti se totiž jedná o vektor celých
+čísel.</div></p>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Čtení a zápis prvků polí</h2>
+
+<p>Pro čtení prvků z&nbsp;pole se používá funkce <strong>aref</strong>, pro
+zápis (modifikaci) pole pak funkce <strong>aset</strong>. Těmto funkcím se
+nejdříve předá pole a posléze index prvku. Funkci <strong>aset</strong>
+samozřejmě ještě modifikovaná hodnota:</p>
+
+<pre>
+<strong>(setq v1 [1 2 3 4])</strong>
+<strong>(setq str1 "Hello")</strong>
+&nbsp;
+<strong>(print v1)</strong>
+<strong>(print str1)</strong>
+&nbsp;
+<strong>(print "-----------------------------------------")</strong>
+&nbsp;
+<strong>(aset v1 1 99)</strong>
+<strong>(aset str1 0 ?*)</strong>
+<strong>(aset str1 4 ?!)</strong>
+&nbsp;
+<strong>(print v1)</strong>
+<strong>(print str1)</strong>
+&nbsp;
+<strong>(print "-----------------------------------------")</strong>
+&nbsp;
+<strong>(print(aref v1 0))</strong>
+&nbsp;
+<strong>(print(aref str1 0))</strong>
+<strong>(print(aref str1 1))</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+[1 2 3 4]
+"Hello"
+"-----------------------------------------"
+[1 99 3 4]
+"*ell!"
+"-----------------------------------------"
+1
+42
+101
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: povšimněte si, že se jednotlivé znaky
+zapisují s&nbsp;otazníkem na začátku. Dále pak je zajímavé, že
+<strong>aref</strong> nad řetězcem vrátí číslo znaku (což je sice jedno a
+totéž, ovšem funkce <strong>print</strong> vypíše číslo).</div></p>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Kopie seznamů a polí</h2>
+
+<p>S&nbsp;kopií seznamů a polí jsme se ve skutečnosti už seznámili, protože pro
+tento účel je možné použít univerzální funkci nazvanou
+<strong>copy-sequence</strong>. Ve chvíli, kdy jsou kopírované sekvence
+jednoúrovňové, nebývá s&nbsp;použitím této funkce spojen prakticky žádný
+problém:</p>
+
+<pre>
+<strong>(setq v1 [1 2 3 4 5])</strong>
+<strong>(setq s1 "Hello")</strong>
+&nbsp;
+<strong>(setq v2 (copy-sequence v1))</strong>
+<strong>(setq s2 (copy-sequence s1))</strong>
+&nbsp;
+<strong>(print v1)</strong>
+<strong>(print s1)</strong>
+<strong>(print v2)</strong>
+<strong>(print s2)</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+[1 2 3 4 5]
+"Hello"
+[1 2 3 4 5]
+"Hello"
+</pre>
+
+<p>V&nbsp;případě, že změníme prvek v&nbsp;původní sekvenci, nebude tato změna
+v&nbsp;kopiích nijak reflektována:</p>
+
+<pre>
+<strong>(aset v1 0 99)</strong>
+<strong>(aset s1 0 ??)</strong>
+&nbsp;
+<strong>(print v1)</strong>
+<strong>(print s1)</strong>
+<strong>(print v2)</strong>
+<strong>(print s2)</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+[99 2 3 4 5]
+"?ello"
+[1 2 3 4 5]
+"Hello"
+</pre>
+
+<p>Zajímavější situace ovšem nastane, pokud je vstupní sekvence složitější o
+obsahuje například další vektory nebo řetězce:</p>
+
+<pre>
+<strong>(setq x [1 2 [3 4] [5 6]])</strong>
+<strong>(setq y (copy-sequence x))</strong>
+&nbsp;
+<strong>(print x)</strong>
+<strong>(print y)</strong>
+</pre>
+
+<p>Výsledky prozatím odpovídají předpokladům:</p>
+
+<pre>
+[1 2 [3 4] [5 6]]
+[1 2 [3 4] [5 6]]
+</pre>
+
+<p>Ovšem ve chvíli, kdy přes <strong>aref</strong> získáme referenci na vnořený
+seznam/řetězec a změníme ho pomocí <strong>aset</strong>, ukáže se, že původní
+i zkopírovaná sekvence obsahuje reference na shodné hodnoty:</p>
+
+<pre>
+<strong>(aset (aref x 2) 0 -1)</strong>
+<strong>(aset (aref x 2) 1 -1)</strong>
+&nbsp;
+<strong>(print x)</strong>
+<strong>(print y)</strong>
+</pre>
+
+<p>Z&nbsp;výsledků je patrné, že se &bdquo;nenápadně&ldquo; změnila o hodnota
+sekvence <strong>y</strong>:</p>
+
+<pre>
+[1 2 [-1 -1] [5 6]]
+[1 2 [-1 -1] [5 6]]
+</pre>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Základní vlastnosti řetězců</h2>
+
+<p>Dalším typem pole jsou klasické řetězce. Interně se řetězce chovají
+prakticky stejně jako vektory celočíselných hodnot, což znamená, že vektory a
+řetězce mají velmi mnoho společných vlastností zmíněných <a href="#k04">ve
+čtvrté kapitole</a>. Řetězce lze samozřejmě zkonstruovat s&nbsp;využitím
+řetězcového literálu popř.&nbsp;pomocí funkce <strong>string</strong>, které se
+předají buď jednotlivé znaky (zapisuje se před nimi prefix &bdquo;?&ldquo;)
+nebo celočíselné kódy jednotlivých znaků:</p>
+
+<pre>
+<strong>(setq s1 "Hello")</strong>
+<strong>(setq s2 (make-string 10 ?*))</strong>
+<strong>(setq s3 (string ?a ?b ?c))</strong>
+<strong>(setq s4 (string 64 65 32 95 96 32))</strong>
+&nbsp;
+<strong>(print s1)</strong>
+<strong>(print s2)</strong>
+<strong>(print s3)</strong>
+<strong>(print s4)</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+"Hello"
+"**********"
+"abc"
+"@A _` "
+</pre>
+
+<p>Užitečná je funkce <strong>concat</strong> vracející nový řetězec vytvořený
+spojením libovolného množství vstupních řetězců:</p>
+
+<pre>
+<strong>(print (concat s1 s2 s3 s4))</strong>
+&nbsp;
+"Hello**********abc@A _` "
+</pre>
+
+<p>Nesmíme zapomenout ani na další velmi užitečnou funkci pojmenovanou
+<strong>substring</strong>. Jak již název této funkce napovídá, lze s&nbsp;ní
+vytvořit podřetězec zadáním indexu prvního a posledního znaku v&nbsp;řetězci
+zdrojovém. První znak v&nbsp;řetězci má index roven 0, podobně jako první prvek
+v&nbsp;seznamu nebo ve vektoru. Index může být kladný (počítá se od začátku
+řetězce) nebo záporný (počítá se od konce řetězce). Druhý index může mít
+hodnotu <strong>nil</strong> znamenající konec řetězce, popř.&nbsp;nemusí být
+uveden vůbec:</p>
+
+<pre>
+<strong>(setq s1 "Hello world")</strong>
+&nbsp;
+<strong>(print s1)</strong>
+&nbsp;
+<strong>(print (substring s1 6 11))</strong>
+<strong>(print (substring s1 0 -6))</strong>
+&nbsp;
+<strong>(print (substring s1 6 nil))</strong>
+<strong>(print (substring s1 -5 nil))</strong>
+<strong>(print (substring s1 -5))</strong>
+&nbsp;
+<i>; kopie retezce, podobne copy-sequence</i>
+<strong>(print (substring s1 0))</strong>
+</pre>
+
+<p>S&nbsp;výsledky:</p>
+
+<pre>
+"Hello world"
+"world"
+"Hello"
+"world"
+"world"
+"world"
+"Hello world"
+</pre>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Kódy znaků v&nbsp;Emacsu</h2>
+
+<p>V&nbsp;Emacsu je možné znaky reprezentovat buď hodnotami od 0 do 255
+(<i>unibyte</i>) nebo hodnotami od 0 do 4194303 (0x3FFFFF), které dokážou
+reprezentovat libovolný ASCII znak či Unicode znak (<i>multibyte</i>).
+Posledních 128 hodnot má pak speciální význam, protože reprezentují osmibitové
+hodnoty s&nbsp;horním bitem nastaveným na jedničku (to je ovšem skutečně
+specialita, kterou se nyní nemusíme zabývat). Pokud se řetězce konstruují
+pomocí <strong>string</strong>, můžeme této funkci předat kódy znaků:</p>
+
+<pre>
+<strong>(setq s1 (string 64 65 32 95 96 32))</strong>
+<strong>(print s1)</strong>
+&nbsp;
+"@A _` "
+</pre>
+
+<p>Popř.&nbsp;lze použít hexadecimální čísla (s&nbsp;poněkud neobvyklým
+zápisem):</p>
+
+<pre>
+<strong>(setq s2 (string #x40 #x41 #x20 #x60 #x20))</strong>
+<strong>(print s2)</strong>
+&nbsp;
+"@A ` "
+</pre>
+
+<p>Vzhledem k&nbsp;dobré podpoře Unicode si samozřejmě můžeme vytvořit řetězec
+se znaky alfabety nebo použít kódy dalších znaků a paznaků:</p>
+
+<pre>
+<strong>(setq s2 (string #x03b1 #x03b2 #x03c9))</strong>
+<strong>(print s2)</strong>
+&nbsp;
+"αβω"
+</pre>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Regulární výrazy</h2>
+
+<p>Emacs Lisp jakožto skriptovací jazyk, na němž je postaven plnohodnotný
+textový editor, samozřejmě podporuje i práci s&nbsp;regulárními výrazy.
+Základem je funkce nazvaná <strong>string-match</strong>, která se snaží nalézt
+ve vstupním řetězci první výskyt sekvence znaků, které odpovídají regulárnímu
+výrazu. Podporovány jsou jak základní operátory pro opakování tzv.&nbsp;atomů
+(?, +, *), tak i například kolekce znaků ([0-9]) a třídy znaků ([[:digit:]]).
+Podívejme se na jednoduchý příklad:</p>
+
+<pre>
+<strong>(setq s1 "Hello world 123456")</strong>
+&nbsp;
+<strong>(print s1)</strong>
+&nbsp;
+<strong>(print (string-match ".+" s1))</strong>
+<strong>(print (string-match "xyz" s1))</strong>
+&nbsp;
+<strong>(print (string-match "[0-9]+" s1))</strong>
+<strong>(print (string-match "[[:digit:]]+" s1))</strong>
+<strong>(print (string-match "[[:blank:]]" s1))</strong>
+<strong>(print (string-match "[^A-Za-z]+" s1))</strong>
+<strong>(print (string-match "[^A-Za-z ]+" s1))</strong>
+</pre>
+
+<p>Z&nbsp;výsledků je patrné, že tato funkce vrací index prvního výskytu
+popř.&nbsp;hodnotu <strong>nil</strong> v&nbsp;případě, že regulárnímu výrazu
+neodpovídá žádná část zdrojového řetězce:</p>
+
+<pre>
+"Hello world 123456"
+0
+nil
+12
+12
+5
+5
+12
+</pre>
+
+<p><div class="rs-tip-major">Poznámka: s&nbsp;regulárními výrazy se ještě
+několikrát setkáme při popisu funkcí určených pro zpracování textů
+v&nbsp;bufferech editoru Emacs.</div></p>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Nahrazení části řetězce jiným obsahem, rozdělení řetězce</h2>
+
+<p>Další užitečnou funkcí, která se při zpracování řetězců poměrně často
+používá, je funkce nazvaná <strong>replace-regexp-in-string</strong>. Tato
+funkce umožňuje ve vstupním řetězci nalézt sekvenci znaků, samozřejmě opět na
+základě nějakého regulárního výrazu, a následně tuto sekvenci nahradit předaným
+řetězcem. Vzhledem k&nbsp;tomu, že se obecně změní délka řetězce (což u polí
+není možné), je ve skutečnosti touto funkcí vrácen řetězec nový.</p>
+
+<p>opět si ukažme jednoduchý příklad:</p>
+
+<pre>
+<strong>(setq s1 "Hello world 123456")</strong>
+&nbsp;  
+<strong>(print s1)</strong>
+&nbsp;  
+<strong>(print (replace-regexp-in-string "[0-9]+" "*" s1))</strong>
+<strong>(print (replace-regexp-in-string "world" "Emacs" s1))</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+"Hello world 123456"
+&nbsp;
+"Hello world *"
+&nbsp;
+"Hello Emacs 123456"
+</pre>
+
+<p>Poslední &bdquo;řetězcovou&ldquo; funkcí, s&nbsp;níž se dnes seznámíme, je
+funkce <strong>split-string</strong> určená pro rozdělení řetězce na (několik)
+částí, a to v&nbsp;místě specifikovaného znaku. Výsledkem je seznam kratších
+řetězců:</p>
+
+<pre>
+<strong>(setq s1 "Hello world 123456")</strong>
+&nbsp;  
+<strong>(print (split-string s1))</strong>
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+("Hello" "world" "123456")
+</pre>
+
+<p>Použít lze i řídicí znaky, například znak pro konec řádku atd.:</p>
+
+<pre>
+<strong>(setq s2 "This\nis\nmultiline\nstring")</strong>
+<strong>(print s2)</strong>
+<strong>(print (split-string s2 "\n"))</strong>
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+"This
+is
+multiline
+string"
+&nbsp;
+("This" "is" "multiline" "string")
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Hešovací tabulky</h2>
+
+<p>Všechny prozatím popsané datové struktury reprezentovaly buď atomy nebo
+sekvenční (heterogenní) datové typy, v&nbsp;nichž byly všechny prvky adresovány
+celočíselným indexem (začínajícím od nuly). V&nbsp;praxi, tj.&nbsp;při psaní
+modulů pro Emacs, se ovšem velmi často setkáme i s&nbsp;hešovacími tabulkami,
+v&nbsp;nichž jsou uloženy dvojice klíč-hodnota, přičemž klíč nemusí být
+celočíselný (může být prakticky jakéhokoli typu podporovaného Emacs Lispem).
+Oproti ostatním heterogenním strukturovaným datovým typům se hešovací tabulky
+odlišují taktéž v&nbsp;tom ohledu, že se v&nbsp;nich nezachovává pořadí
+vložených prvků (to nám však u mnoha operací nemusí vadit a pokud ano, lze
+někdy použít asociativní seznamy nebo seznamy vlastností). Základní způsoby
+použití hešovacích tabulek je zmíněno v&nbsp;navazujících kapitolách.</p>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Konstruktor hešovacích tabulek</h2>
+
+<p>Prázdná hešovací tabulka se vytvoří pomocí funkce pojmenované
+<strong>make-hash-table</strong>, které je možné v&nbsp;případě potřeby předat
+i další parametry popisující chování tzv.&nbsp;hešovací funkce, plánovanou
+kapacitu (počet prvků) a popř.&nbsp;i pravidla určující, kdy a do jaké míry se
+má hešovací tabulka zvětšit v&nbsp;případě, že již nestačí její kapacita. Ovšem
+při základním použití funkce pro vytvoření hešovací tabulky tyto údaje
+nepotřebujeme:</p>
+
+<pre>
+<strong>(setq hash1 (make-hash-table))</strong>
+</pre>
+
+<p>Mezi další nepovinné parametry patří například:</p>
+
+<table>
+<tr><th>Jméno</th><th>Význam</th></tr>
+<tr><td>:test</td><td>funkce pro zjištění ekvivalence klíčů při zápisu/vyhledávání</td></tr>
+<tr><td>:size</td><td>přibližná velikost hešovací tabulky (implicitně 65)</td></tr>
+<tr><td>:rehash-size</td><td>míra zvětšení tabulky při jejím zaplnění</td></tr>
+<tr><td>:rehash-threshold</td><td>desetinné číslo udávající práh, kdy je již tabulka považována za zaplněnou</td></tr>
+</table>
+
+<p><div class="rs-tip-major">Poznámka: pro tabulky s&nbsp;počtem prvků
+dosahujících řádově několik set pravděpodobně nemá smysl s&nbsp;těmito
+hodnotami laborovat.</div></p>
+
+<p>Alternativně je možné použít i vytvoření hešovací tabulky zápisem její
+&bdquo;textové podoby&ldquo;, tj.&nbsp;takovým způsobem, jakým se obsah
+hešovací tabulky vypisuje na standardní výstup funkcí
+<strong>print</strong>:</p>
+
+<pre>
+<strong>(setq hash2 #s(hash-table size 30 data (key1 val1 key2 val2 key3 val3)))</strong>
+</pre>
+
+<p>Samozřejmě si můžete pro větší přehlednost tento zápis rozepsat na více
+řádků:</p>
+
+<pre>
+<strong>(setq hash2</strong>
+      <strong>#s(hash-table</strong>
+         <strong>size 30</strong>
+         <strong>data (</strong>
+               <strong>key1 val1</strong>
+               <strong>key2 val2</strong>
+               <strong>key3 val3)))</strong>
+</pre>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Funkce pro práci s&nbsp;hešovacími tabulkami, řešení kolize klíčů</h2>
+
+<p>Pro práci s&nbsp;hešovacími tabulkami je v&nbsp;Emacs Lispu určeno několik
+funkcí, které jsou vypsány níže společně s&nbsp;jejich stručným popisem:</p>
+
+<table>
+<tr><th>Funkce</th><th>Stručný popis funkce</th></tr>
+<tr><td>make-hash-table</td><td>vytvoření hešovací tabulky, již známe <a href="#k14">z&nbsp;předchozí kapitoly</a></td></tr>
+<tr><td>gethash</td><td>vyhledání prvku v&nbsp;hešovací tabulce</td></tr>
+<tr><td>puthash</td><td>vložení další dvojice klíč-hodnota do hešovací tabulky</td></tr>
+<tr><td>remhash</td><td>odstranění dvojice klíče-hodnota z&nbsp;hešovací tabulky</td></tr>
+<tr><td>clrhash</td><td>vymazání celého obsahu hešovací tabulky</td></tr>
+<tr><td>maphash</td><td>bude popsána <a href="#k16">v&nbsp;navazující kapitole</a></td></tr>
+</table>
+
+<p>Při použití klíčů si musíme dát pozor na to, jaká funkce se volá pro
+zjištění, zda jsou klíče ekvivalentní. V&nbsp;níže uvedeném příkladu se nám
+stane, že řetězec &bdquo;klic&ldquo; je použit dvakrát, protože výchozí
+porovnávací funkce nepovažuje dva řetězce se stejným obsahem ale jinou adresou
+za ekvivalentní:</p>
+
+<pre>
+<strong>(setq hash1 (make-hash-table))</strong>
+<strong>(setq hash2 #s(hash-table size 30 data (key1 val1 key2 val2)))</strong>
+&nbsp;
+<strong>(print hash1)</strong>
+<strong>(print hash2)</strong>
+&nbsp;
+<strong>(puthash 'klic 'hodnota hash1)</strong>
+<strong>(puthash "klic" "hodnota" hash1)</strong>
+<strong>(print hash1)</strong>
+&nbsp;
+<strong>(puthash 'klic "jina hodnota" hash1)</strong>
+<strong>(print hash1)</strong>
+&nbsp;
+<strong>(puthash "klic" "uplne jina hodnota?" hash1)</strong>
+<strong>(print hash1)</strong>
+</pre>
+
+<p>Výsledky (shodné klíče jsou zvýrazněny):</p>
+
+<pre>
+#s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8 data ())
+&nbsp;
+#s(hash-table size 30 test eql rehash-size 1.5 rehash-threshold 0.8 data (key1 val1 key2 300))
+&nbsp;
+#s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8 data (klic hodnota "klic" "hodnota"))
+&nbsp;
+#s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8 data (klic "jina hodnota" "klic" "hodnota"))
+&nbsp;
+#s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8 data (klic "jina hodnota" <strong>"klic"</strong> "hodnota" <strong>"klic"</strong> "uplne jina hodnota?"))
+</pre>
+
+<p>Náprava je snadná &ndash; explicitní určení funkce použité pro porovnávání
+klíčů:</p>
+
+<pre>
+<strong>(setq hash3 (make-hash-table :test 'equal))</strong>
+&nbsp;
+<strong>(puthash 'klic 'hodnota hash3)</strong>
+<strong>(puthash "klic" "hodnota" hash3)</strong>
+<strong>(print hash3)</strong>
+&nbsp;
+<strong>(puthash 'klic "jina hodnota" hash3)</strong>
+<strong>(print hash3)</strong>
+&nbsp;
+<strong>(puthash "klic" "uplne jina hodnota?" hash3)</strong>
+</pre>
+
+<p>Nyní je již vše v&nbsp;pořádku a prvek byl přepsán novou hodnotou:</p>
+
+<pre>
+#s(hash-table size 65 test equal rehash-size 1.5 rehash-threshold 0.8 data (klic hodnota <strong>"klic"</strong> "hodnota"))
+&nbsp;
+#s(hash-table size 65 test equal rehash-size 1.5 rehash-threshold 0.8 data (klic "jina hodnota" <strong>"klic"</strong> "hodnota"))
+&nbsp;
+#s(hash-table size 65 test equal rehash-size 1.5 rehash-threshold 0.8 data (klic "jina hodnota" <strong>"klic"</strong> "uplne jina hodnota?"))
+</pre>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Funkce <strong>maphash</strong></h2>
+
+<p>Další funkcí použitou pro práci s&nbsp;hešovacími tabulkami je funkce
+nazvaná <strong>maphash</strong>. Jedná se o funkci vyššího řádu, která mapuje
+jinou uživatelem definovanou funkci na každou nalezenou dvojici klíč-hodnota.
+Funkce <strong>maphash</strong> kupodivu nevrací žádný výsledek, tj.&nbsp;ani
+výsledek mapování uživatelské funkce. Celé chování tedy závisí na vedlejších
+efektech:</p>
+
+<pre>
+<strong>(defun print-key-value (key value)</strong>
+  <strong>(print (format "%s %d" (reverse key) (* 2 value))))</strong>
+&nbsp;
+<strong>(setq hash1 (make-hash-table))</strong>
+&nbsp;
+<strong>(print hash1)</strong>
+&nbsp;
+<strong>(puthash "one" 1 hash1)</strong>
+<strong>(puthash "two" 2 hash1)</strong>
+<strong>(puthash "three" 3 hash1)</strong>
+<strong>(puthash "four" 4 hash1)</strong>
+<strong>(print hash1)</strong>
+&nbsp;
+<strong>(maphash 'print-key-value hash1)</strong>
+<strong>(print hash1)</strong>
+</pre>
+
+<p>Podívejme se na výsledky předchozího skriptu.</p>
+
+<p>Původní prázdná tabulka a naplněná tabulka:</p>
+
+<pre>
+#s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8 data ())
+&nbsp;
+#s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8 data ("one" 1 "two" 2 "three" 3 "four" 4))
+</pre>
+
+<p>Výsledek aplikace funkce <strong>print-key-value</strong>:</p>
+
+<pre>
+"eno 2"
+&nbsp;
+"owt 4"
+&nbsp;
+"eerht 6"
+&nbsp;
+"ruof 8"
+</pre>
+
+<p>Původní tabulka nebyla funkcí <strong>maphash</strong> nijak dotčena:</p>
+
+<pre>
+#s(hash-table size 65 test eql rehash-size 1.5 rehash-threshold 0.8 data ("one" 1 "two" 2 "three" 3 "four" 4))
+</pre>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Asociativní seznamy a seznamy vlastností</h2>
+
+<p>Poslední dva strukturované datové typy, s&nbsp;nimiž se v&nbsp;dnešním
+článku seznámíme, jsou asociativní seznamy (<i>alisp</i>) a seznamy vlastností
+(<i>property list</i>). Asociativní seznamy jsou tvořeny sekvencí tečka dvojic,
+přičemž první hodnotu v&nbsp;tečka dvojici můžeme považovat za klíč (nemusí být
+unikátní):</p>
+
+<pre>
+<strong>(setq numbers '((one . 1) (two . 2) (three . 3)))</strong>
+</pre>
+
+<p>Pro nalezení tečka dvojice slouží funkce <strong>assoc</strong> a
+<strong>assq</strong> (při porovnávání klíče používá funkce
+<strong>eq</strong>, takže nebude pracovat korektně pro řetězce!):</p>
+
+<pre>
+<strong>(print (assoc 'one numbers))</strong>
+<strong>(print (car (assoc 'one numbers)))</strong>
+<strong>(print (cdr (assoc 'one numbers)))</strong>
+&nbsp;
+<strong>(print (assoc 'two numbers))</strong>
+<strong>(print (car (assoc 'two numbers)))</strong>
+<strong>(print (cdr (assoc 'two numbers)))</strong>
+&nbsp;
+<strong>(print (assq 'two numbers))</strong>
+<strong>(print (car (assq 'two numbers)))</strong>
+<strong>(print (cdr (assq 'two numbers)))</strong>
+&nbsp;
+<strong>(print (assoc 'zero numbers))</strong>
+</pre>
+
+<p>Výsledky vyhledání:</p>
+
+<pre>
+(one . 1)
+one
+1
+&nbsp;
+(two . 2)
+two
+2
+&nbsp;
+(two . 2)
+two
+2
+&nbsp;
+nil
+</pre>
+
+<p>Vyhledávat lze i podle hodnoty, tj.&nbsp;na základě druhého prvku
+v&nbsp;tečka dvojicích:</p>
+
+<pre>
+<strong>(print (rassoc 1 numbers))</strong>
+<strong>(print (car (rassoc 1 numbers)))</strong>
+<strong>(print (cdr (rassoc 1 numbers)))</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+(one . 1)
+one
+1
+</pre>
+
+<p>Hodnoty v&nbsp;tečka dvojicích mohou být jakékoli, lze tedy použít i běžná
+čísla:</p>
+
+<pre>
+(setq rnumbers '((1 . one) (2 . two) (3 . three)))
+&nbsp;
+(print (assoc 1 rnumbers))
+(print (car (assoc 1 rnumbers)))
+(print (cdr (assoc 1 rnumbers)))
+&nbsp;
+(print (assoc 2 rnumbers))
+(print (car (assoc 2 rnumbers)))
+(print (cdr (assoc 2 rnumbers)))
+&nbsp;
+(print (assoc 0 rnumbers))
+&nbsp;
+(print (rassoc 'two rnumbers))
+(print (car (rassoc 'two rnumbers)))
+(print (cdr (rassoc 'two rnumbers)))
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+(1 . one)
+1
+one
+&nbsp;
+(2 . two)
+2
+two
+&nbsp;
+nil
+&nbsp;
+(2 . two)
+2
+two
+</pre>
+
+<p>Setkat se můžeme i s&nbsp;takzvanými seznamy vlastností (<i>property
+list</i>). Jedná se o běžné seznamy se sudým počtem prvků, přičemž sudý prvek
+je jméno vlastnosti a prvek lichý hodnota vlastnosti (indexuje se od 0). Pro
+přečtení vlastnosti slouží funkce <strong>plist-get</strong>, pro otestování,
+zda vlastnost vůbec existuje, pak funkce <strong>plist-member</strong> (tato
+druhá funkce existuje pro jednoznačné rozhodnutí o existenci vlastnosti, i když
+je její hodnota <strong>nil</strong>):</p>
+
+<pre>
+<strong>(setq numbers '(one  1 two  2 three  3))</strong>
+&nbsp;
+<strong>(print (plist-get numbers 'zero))</strong>
+<strong>(print (plist-get numbers 'one))</strong>
+<strong>(print (plist-get numbers 'two))</strong>
+&nbsp;
+<strong>(print (plist-member numbers 'zero))</strong>
+<strong>(print (plist-member numbers 'one))</strong>
+<strong>(print (plist-member numbers 'two))</strong>
+&nbsp;
+<strong>(print "---------------------------------")</strong>
+&nbsp;
+<strong>(setq numbers (plist-put numbers 'zero 0))</strong>
+<strong>(print (plist-get numbers 'zero))</strong>
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+nil
+1
+2
+nil
+(one 1 two 2 three 3)
+(two 2 three 3)
+"---------------------------------"
+0
+</pre>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Zdrojové kódy většiny dnes popsaných demonstračních příkladů byly uloženy do
+Git repositáře dostupného na adrese <a
+href="https://github.com/tisnik/elisp-examples">https://github.com/tisnik/elisp-examples</a>
+(stále na GitHubu :-). V&nbsp;případě, že nebudete chtít klonovat celý
+repositář (ten je ovšem stále velmi malý, dnes má doslova několik kilobajtů),
+můžete namísto toho použít odkazy na jednotlivé příklady, které naleznete
+v&nbsp;následující tabulce:</p>
+
+<table>
+<tr><th> #</th><th>Demonstrační příklad</th><th>Popis</th><th>Cesta</th></tr>
+<tr><td> 1</td><td>01_sequences.el</td><td>základní funkce pro zpracování sekvencí</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/01_sequences.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/01_sequences.el</a></td></tr>
+<tr><td> 2</td><td>02_copy_sequence.el</td><td>funkce pro kopii sekvence</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/02_copy_sequence.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/02_copy_sequence.el</a></td></tr>
+<tr><td> 3</td><td>03_vector_constructors.el</td><td>různé konstruktory vektorů</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/03_vector_constructors.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/03_vector_constructors.el</a></td></tr>
+<tr><td> 4</td><td>04_vector_predicate.el</td><td>predikát, zda je hodnota vektorem</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/04_vector_predicate.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/04_vector_predicate.el</a></td></tr>
+<tr><td> 5</td><td>05_vconcat.el</td><td>použití funkce <strong>vconcat</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/05_vconcat.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/05_vconcat.el</a></td></tr>
+<tr><td> 6</td><td>06_append.el</td><td>použití funkce <strong>append</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/06_append.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/06_append.el</a></td></tr>
+<tr><td> 7</td><td>07_array_predicates.el</td><td>predikát <strong>arrayp</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/07_array_predicates.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/07_array_predicates.el</a></td></tr>
+<tr><td> 8</td><td>08_fillarray.el</td><td>použití funkce <strong>fillarray</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/08_fillarray.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/08_fillarray.el</a></td></tr>
+<tr><td> 9</td><td>09_aset_aref.el</td><td>funkce <strong>aset</strong> a <strong>aref</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/09_aset_aref.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/09_aset_aref.el</a></td></tr>
+<tr><td>10</td><td>10_copy_sequence_again.el</td><td>kopie sekvencí a potenciální problémy</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/10_copy_sequence_again.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/10_copy_sequence_again.el</a></td></tr>
+<tr><td>11</td><td>11_string_constructors.el</td><td>konstruktory řetězců</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/11_string_constructors.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/11_string_constructors.el</a></td></tr>
+<tr><td>12</td><td>12_substring.el</td><td>získání podřetězce</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/12_substring.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/12_substring.el</a></td></tr>
+<tr><td>13</td><td>13_charcodes.el</td><td>kódy znaků</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/13_charcodes.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/13_charcodes.el</a></td></tr>
+<tr><td>14</td><td>14_string_match.el</td><td>regulární výrazy</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/14_string_match.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/14_string_match.el</a></td></tr>
+<tr><td>15</td><td>15_string_replace_split.el</td><td>náhrada znaků, funkce <strong>split</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/15_string_replace_split.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/15_string_replace_split.el</a></td></tr>
+<tr><td>16</td><td>16_hash_table_constructors.el</td><td>konstruktory hešovacích tabulek</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/16_hash_table_constructors.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/16_hash_table_constructors.el</a></td></tr>
+<tr><td>17</td><td>17_hash_table_put_items.el</td><td>přidání prvků do hešovací tabulky</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/17_hash_table_put_items.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/17_hash_table_put_items.el</a></td></tr>
+<tr><td>18</td><td>18_maphash.el</td><td>funkce <strong>maphash</strong></td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/18_maphash.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/18_maphash.el</a></td></tr>
+<tr><td>19</td><td>19_alist.el</td><td>asociativní seznamy</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/19_alist.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/19_alist.el</a></td></tr>
+<tr><td>20</td><td>20_plist.el</td><td>seznamy vlastností</td><td><a href="https://github.com/tisnik/elisp-examples/blob/master/elisp-5/20_plist.el">https://github.com/tisnik/elisp-examples/blob/master/elisp-5/20_plist.el</a></td></tr>
+</table>
+
+<p><div class="rs-tip-major">Poznámka: všechny popsané demonstrační příklady je
+možné spustit přímo z&nbsp;příkazové řádky, a to konkrétně následujícím
+způsobem:</div></p>
+
+<pre>
+$ <strong>emacs -script jméno_skriptu.el</strong>
+</pre>
+
+
+
+<p><a name="k19"></a></p>
+<h2 id="k19">19. Literatura</h2>
+
+<ol>
+
+<li>McCarthy<br />
+<i>&bdquo;Recursive functions of symbolic expressions and their computation by machine, part I&ldquo;</i><br />
+1960
+</li>
+
+<li>Guy L. Steele<br />
+<i>&bdquo;History of Scheme&ldquo;</i><br />
+2006, Sun Microsystems Laboratories
+</li>
+
+<li>Kolář J., Muller K.:<br />
+<i>&bdquo;Speciální programovací jazyky&ldquo;</i><br />
+Praha 1981
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 9, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., October 1987
+</li>
+
+<li>
+<i>&bdquo;AutoLISP Release 10, Programmer's reference&ldquo;</i><br />
+Autodesk Ltd., September 1988
+</li>
+
+<li>McCarthy, John; Abrahams, Paul W.; Edwards, Daniel J.; Hart, Timothy P.; Levin, Michael I.<br />
+<i>&bdquo;LISP 1.5 Programmer's Manual&ldquo;</i><br />
+MIT Press. ISBN 0 262 130 1 1 4
+</li>
+
+<li>Carl Hewitt; Peter Bishop and Richard Steiger<br />
+<i>&bdquo;A Universal Modular Actor Formalism for Artificial Intelligence&ldquo;</i><br />
+1973
+</li>
+
+<li>Feiman, J.<br />
+<i>&bdquo;The Gartner Programming Language Survey (October 2001)&ldquo;</i><br />
+Gartner Advisory
+</li>
+
+<li>Harold Abelson, Gerald Jay Sussman, Julie Sussman:<br />
+<i>Structure and Interpretation of Computer Programs</i><br />
+MIT Press. 1985, 1996 (a možná vyšel i další přetisk)
+</li>
+
+<li>Paul Graham:<br />
+<i>On Lisp</i><br />
+Prentice Hall, 1993<br />
+Dostupné online na stránce <a href="http://www.paulgraham.com/onlisptext.html">http://www.paulgraham.com/onlisptext.html</a>
+</li>
+
+<li>David S. Touretzky<br />
+<i>Common LISP: A Gentle Introduction to Symbolic Computation (Dover Books on Engineering)</i><br />
+</li>
+
+<li>Peter Norvig<br />
+<i>Paradigms of Artificial Intelligence Programming: Case Studies in Common Lisp</i>
+</li>
+
+<li>Patrick Winston, Berthold Horn<br />
+<i>Lisp (3rd Edition)</i><br />
+ISBN-13: 978-0201083194, ISBN-10: 0201083191
+</li>
+
+<li>Matthias Felleisen, David Van Horn, Dr. Conrad Barski<br>
+<i>Realm of Racket: Learn to Program, One Game at a Time!</i><br />
+ISBN-13: 978-1593274917, ISBN-10: 1593274912 
+</li>
+
+</ol>
+
+
+
+<p><a name="k20"></a></p>
+<h2 id="k20">20. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>Elisp: Sequence: List, Array<br />
+<a href="http://ergoemacs.org/emacs/elisp_list_vs_vector.html">http://ergoemacs.org/emacs/elisp_list_vs_vector.html</a>
+</li>
+
+<li>Elisp: Property List<br />
+<a href="http://ergoemacs.org/emacs/elisp_property_list.html">http://ergoemacs.org/emacs/elisp_property_list.html</a>
+</li>
+
+<li>Elisp: Hash Table<br />
+<a href="http://ergoemacs.org/emacs/elisp_hash_table.html">http://ergoemacs.org/emacs/elisp_hash_table.html</a>
+</li>
+
+<li>Elisp: Association List<br />
+<a href="http://ergoemacs.org/emacs/elisp_association_list.html">http://ergoemacs.org/emacs/elisp_association_list.html</a>
+</li>
+
+<li>The mapcar Function (An Introduction to Programming in Emacs Lisp)<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/mapcar.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/mapcar.html</a>
+</li>
+
+<li>Anaphoric macro<br />
+<a href="https://en.wikipedia.org/wiki/Anaphoric_macro">https://en.wikipedia.org/wiki/Anaphoric_macro</a>
+</li>
+
+<li>Some Common Lisp Loop Macro Examples<br />
+<a href="https://www.youtube.com/watch?v=3yl8o6r_omw">https://www.youtube.com/watch?v=3yl8o6r_omw</a>
+</li>
+
+<li>A Guided Tour of Emacs<br />
+<a href="https://www.gnu.org/software/emacs/tour/">https://www.gnu.org/software/emacs/tour/</a>
+</li>
+
+<li>The Roots of Lisp<br />
+<a href="http://www.paulgraham.com/rootsoflisp.html">http://www.paulgraham.com/rootsoflisp.html</a>
+</li>
+
+<li>Evil (Emacs Wiki)<br />
+<a href="https://www.emacswiki.org/emacs/Evil">https://www.emacswiki.org/emacs/Evil</a>
+</li>
+
+<li>Evil (na GitHubu)<br />
+<a href="https://github.com/emacs-evil/evil">https://github.com/emacs-evil/evil</a>
+</li>
+
+<li>Evil (na stránkách repositáře MELPA)<br />
+<a href="https://melpa.org/#/evil">https://melpa.org/#/evil</a>
+</li>
+
+<li>Evil Mode: How I Switched From VIM to Emacs<br />
+<a href="https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html">https://blog.jakuba.net/2014/06/23/evil-mode-how-to-switch-from-vim-to-emacs.html</a>
+</li>
+
+<li>GNU Emacs (home page)<br />
+<a href="https://www.gnu.org/software/emacs/">https://www.gnu.org/software/emacs/</a>
+</li>
+
+<li>GNU Emacs (texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs">http://texteditors.org/cgi-bin/wiki.pl?GnuEmacs</a>
+</li>
+
+<li>An Introduction To Using GDB Under Emacs<br />
+<a href="http://tedlab.mit.edu/~dr/gdbintro.html">http://tedlab.mit.edu/~dr/gdbintro.html</a>
+</li>
+
+<li>An Introduction to Programming in Emacs Lisp<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html">https://www.gnu.org/software/emacs/manual/html_node/eintr/index.html</a>
+</li>
+
+<li>27.6 Running Debuggers Under Emacs<br />
+<a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html">https://www.gnu.org/software/emacs/manual/html_node/emacs/Debuggers.html</a>
+</li>
+
+<li>GdbMode<br />
+<a href="http://www.emacswiki.org/emacs/GdbMode">http://www.emacswiki.org/emacs/GdbMode</a>
+</li>
+
+<li>Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Emacs">https://en.wikipedia.org/wiki/Emacs</a>
+</li>
+
+<li>Emacs timeline<br />
+<a href="http://www.jwz.org/doc/emacs-timeline.html">http://www.jwz.org/doc/emacs-timeline.html</a>
+</li>
+
+<li>Emacs Text Editors Family<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily">http://texteditors.org/cgi-bin/wiki.pl?EmacsFamily</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse/</a>
+</li>
+
+<li>Vrapper aneb spojení možností Vimu a Eclipse (část 2: vyhledávání a nahrazování textu)<br />
+<a href="https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/">https://mojefedora.cz/vrapper-aneb-spojeni-moznosti-vimu-a-eclipse-cast-2-vyhledavani-a-nahrazovani-textu/</a>
+</li>
+
+<li>Emacs/Evil-mode - A basic reference to using evil mode in Emacs<br />
+<a href="http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet">http://www.aakarshnair.com/posts/emacs-evil-mode-cheatsheet</a>
+</li>
+
+<li>From Vim to Emacs+Evil chaotic migration guide<br />
+<a href="https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/">https://juanjoalvarez.net/es/detail/2014/sep/19/vim-emacsevil-chaotic-migration-guide/</a>
+</li>
+
+<li>Introduction to evil-mode {video)<br />
+<a href="https://www.youtube.com/watch?v=PeVQwYUxYEg">https://www.youtube.com/watch?v=PeVQwYUxYEg</a>
+</li>
+
+<li>EINE (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/EINE">http://www.emacswiki.org/emacs/EINE</a>
+</li>
+
+<li>EINE (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?EINE">http://texteditors.org/cgi-bin/wiki.pl?EINE</a>
+</li>
+
+<li>ZWEI (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/ZWEI">http://www.emacswiki.org/emacs/ZWEI</a>
+</li>
+
+<li>ZWEI (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?ZWEI">http://texteditors.org/cgi-bin/wiki.pl?ZWEI</a>
+</li>
+
+<li>Zmacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Zmacs">https://en.wikipedia.org/wiki/Zmacs</a>
+</li>
+
+<li>Zmacs (Texteditors.org)<br />
+<a href="http://texteditors.org/cgi-bin/wiki.pl?Zmacs">http://texteditors.org/cgi-bin/wiki.pl?Zmacs</a>
+</li>
+
+<li>TecoEmacs (Emacs Wiki)<br />
+<a href="http://www.emacswiki.org/emacs/TecoEmacs">http://www.emacswiki.org/emacs/TecoEmacs</a>
+</li>
+
+<li>Micro Emacs<br />
+<a href="http://www.emacswiki.org/emacs/MicroEmacs">http://www.emacswiki.org/emacs/MicroEmacs</a>
+</li>
+
+<li>Micro Emacs (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/MicroEMACS">https://en.wikipedia.org/wiki/MicroEMACS</a>
+</li>
+
+<li>EmacsHistory<br />
+<a href="http://www.emacswiki.org/emacs/EmacsHistory">http://www.emacswiki.org/emacs/EmacsHistory</a>
+</li>
+
+<li>Seznam editorů s ovládáním podobným Emacsu či kompatibilních s příkazy Emacsu<br />
+<a href="http://www.finseth.com/emacs.html">http://www.finseth.com/emacs.html</a>
+</li>
+
+<li>evil-numbers<br />
+<a href="https://github.com/cofi/evil-numbers">https://github.com/cofi/evil-numbers</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (1.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v&nbsp;Linuxu (2.část)<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-2-cast/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (3): Nemiver<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-3-nemiver/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (4): KDbg<br />
+<a href="http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/">http://fedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-4-kdbg/</a>
+</li>
+
+<li>Debuggery a jejich nadstavby v Linuxu (5): ladění aplikací v editorech Emacs a Vim<br />
+<a href="https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/">https://mojefedora.cz/debuggery-a-jejich-nadstavby-v-linuxu-5-ladeni-aplikaci-v-editorech-emacs-a-vim/</a>
+</li>
+
+<li>Org mode<br />
+<a href="https://orgmode.org/">https://orgmode.org/</a>
+</li>
+
+<li>The Org Manual<br />
+<a href="https://orgmode.org/manual/index.html">https://orgmode.org/manual/index.html</a>
+</li>
+
+<li>Kakoune (modální textový editor)<br />
+<a href="http://kakoune.org/">http://kakoune.org/</a>
+</li>
+
+<li>Vim-style keybinding in Emacs/Evil-mode<br />
+<a href="https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8">https://gist.github.com/troyp/6b4c9e1c8670200c04c16036805773d8</a>
+</li>
+
+<li>Emacs - jak začít<br />
+<a href="http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit">http://www.abclinuxu.cz/clanky/navody/emacs-jak-zacit</a>
+</li>
+
+<li>Programovací jazyk LISP a LISP machines<br />
+<a href="https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/">https://www.root.cz/clanky/programovaci-jazyk-lisp-a-lisp-machines/</a>
+</li>
+
+<li>Evil-surround<br />
+<a href="https://github.com/emacs-evil/evil-surround">https://github.com/emacs-evil/evil-surround</a>
+</li>
+
+<li>Spacemacs<br />
+<a href="http://spacemacs.org/">http://spacemacs.org/</a>
+</li>
+
+<li>Lisp: Common Lisp, Racket, Clojure, Emacs Lisp<br />
+<a href="http://hyperpolyglot.org/lisp">http://hyperpolyglot.org/lisp</a>
+</li>
+
+<li>Common Lisp, Scheme, Clojure, And Elisp Compared<br />
+<a href="http://irreal.org/blog/?p=725">http://irreal.org/blog/?p=725</a>
+</li>
+
+<li>Does Elisp Suck?<br />
+<a href="http://irreal.org/blog/?p=675">http://irreal.org/blog/?p=675</a>
+</li>
+
+<li>Emacs pro mírně pokročilé (9): Elisp<br />
+<a href="https://www.root.cz/clanky/emacs-elisp/">https://www.root.cz/clanky/emacs-elisp/</a>
+</li>
+
+<li>If I want to learn lisp, are emacs and elisp a good choice?<br />
+<a href="https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/">https://www.reddit.com/r/emacs/comments/2m141y/if_i_want_to_learn_lisp_are_emacs_and_elisp_a/</a>
+</li>
+
+<li>Clojure(Script) Interactive Development Environment that Rocks!<br />
+<a href="https://github.com/clojure-emacs/cider">https://github.com/clojure-emacs/cider</a>
+</li>
+
+<li>An Introduction to Emacs Lisp<br />
+<a href="https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html">https://harryrschwartz.com/2014/04/08/an-introduction-to-emacs-lisp.html</a>
+</li>
+
+<li>Emergency Elisp<br />
+<a href="http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html">http://steve-yegge.blogspot.com/2008/01/emergency-elisp.html</a>
+</li>
+
+<li>Racket<br />
+<a href="https://racket-lang.org/">https://racket-lang.org/</a>
+</li>
+
+<li>The Racket Manifesto<br />
+<a href="http://felleisen.org/matthias/manifesto/">http://felleisen.org/matthias/manifesto/</a>
+</li>
+
+<li>MIT replaces Scheme with Python<br />
+<a href="https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/">https://www.johndcook.com/blog/2009/03/26/mit-replaces-scheme-with-python/</a>
+</li>
+
+<li>Adventures in Advanced Symbolic Programming<br />
+<a href="http://groups.csail.mit.edu/mac/users/gjs/6.945/">http://groups.csail.mit.edu/mac/users/gjs/6.945/</a>
+</li>
+
+<li>Why MIT Switched from Scheme to Python (2009)<br />
+<a href="https://news.ycombinator.com/item?id=14167453">https://news.ycombinator.com/item?id=14167453</a>
+</li>
+
+<li>Starodávná stránka XLispu<br />
+<a href="http://www.xlisp.org/">http://www.xlisp.org/</a>
+</li>
+
+<li>AutoLISP<br />
+<a href="https://en.wikipedia.org/wiki/AutoLISP">https://en.wikipedia.org/wiki/AutoLISP</a>
+</li>
+
+<li>Seriál PicoLisp: minimalistický a výkonný interpret Lispu<br />
+<a href="https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/">https://www.root.cz/serialy/picolisp-minimalisticky-a-vykonny-interpret-lispu/</a>
+</li>
+
+<li>Common Lisp<br />
+<a href="https://common-lisp.net/">https://common-lisp.net/</a>
+</li>
+
+<li>Getting Going with Common Lisp<br />
+<a href="https://cliki.net/Getting%20Started">https://cliki.net/Getting%20Started</a>
+</li>
+
+<li>Online Tutorial (Common Lisp)<br />
+<a href="https://cliki.net/online%20tutorial">https://cliki.net/online%20tutorial</a>
+</li>
+
+<li>Guile Emacs<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacs">https://www.emacswiki.org/emacs/GuileEmacs</a>
+</li>
+
+<li>Guile Emacs History<br />
+<a href="https://www.emacswiki.org/emacs/GuileEmacsHistory">https://www.emacswiki.org/emacs/GuileEmacsHistory</a>
+</li>
+
+<li>Guile is a programming language<br />
+<a href="https://www.gnu.org/software/guile/">https://www.gnu.org/software/guile/</a>
+</li>
+
+<li>MIT Scheme<br />
+<a href="http://groups.csail.mit.edu/mac/projects/scheme/">http://groups.csail.mit.edu/mac/projects/scheme/</a>
+</li>
+
+<li>SIOD: Scheme in One Defun<br />
+<a href="http://people.delphiforums.com/gjc//siod.html">http://people.delphiforums.com/gjc//siod.html</a>
+</li>
+
+<li>CommonLispForEmacs<br />
+<a href="https://www.emacswiki.org/emacs/CommonLispForEmacs">https://www.emacswiki.org/emacs/CommonLispForEmacs</a>
+</li>
+
+<li>Elisp: print, princ, prin1, format, message<br />
+<a href="http://ergoemacs.org/emacs/elisp_printing.html">http://ergoemacs.org/emacs/elisp_printing.html</a>
+</li>
+
+<li>Special Forms in Lisp<br />
+<a href="http://www.nhplace.com/kent/Papers/Special-Forms.html">http://www.nhplace.com/kent/Papers/Special-Forms.html</a>
+</li>
+
+<li>Basic Building Blocks in LISP<br />
+<a href="https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm">https://www.tutorialspoint.com/lisp/lisp_basic_syntax.htm</a>
+</li>
+
+<li>Introduction to LISP - University of Pittsburgh<br />
+<a href="https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf">https://people.cs.pitt.edu/~milos/courses/cs2740/Lectures/LispTutorial.pdf</a>
+</li>
+
+<li>Why don't people use LISP<br />
+<a href="https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/">https://forums.freebsd.org/threads/why-dont-people-use-lisp.24572/</a>
+</li>
+
+<li>Structured program theorem<br />
+<a href="https://en.wikipedia.org/wiki/Structured_program_theorem">https://en.wikipedia.org/wiki/Structured_program_theorem</a>
+</li>
+
+<li>Clojure: API Documentation<br />
+<a href="https://clojure.org/api/api">https://clojure.org/api/api</a>
+</li>
+
+<li>Tutorial for the Common Lisp Loop Macro<br />
+<a href="http://www.ai.sri.com/pkarp/loop.html">http://www.ai.sri.com/pkarp/loop.html</a>
+</li>
+
+<li>Common Lisp's Loop Macro Examples for Beginners<br />
+<a href="http://www.unixuser.org/~euske/doc/cl/loop.html">http://www.unixuser.org/~euske/doc/cl/loop.html</a>
+</li>
+
+<li>A modern list api for Emacs. No 'cl required.<br />
+<a href="https://github.com/magnars/dash.el">https://github.com/magnars/dash.el</a>
+</li>
+
+<li>The LOOP Facility<br />
+<a href="http://www.lispworks.com/documentation/HyperSpec/Body/06_a.htm">http://www.lispworks.com/documentation/HyperSpec/Body/06_a.htm</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2018</small></p>
+</body>
+</html>
+
